@@ -30,7 +30,7 @@ func main() {
 		mainLogger.Fatal(ctx, err.Error())
 	}
 
-	err = postgres.Migrate(cfg.Config, cfg.MigrationsPath)
+	err = postgres.Migrate(ctx, cfg.Config, cfg.MigrationsPath)
 	if err != nil {
 		mainLogger.Fatal(ctx, err.Error())
 	}
