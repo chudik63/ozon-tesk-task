@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"ozon-tesk-task/internal/database/postgres"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -24,7 +25,7 @@ func New() (*Config, error) {
 	}
 
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
 	return &cfg, nil
