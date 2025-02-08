@@ -1,27 +1,26 @@
 CREATE TABLE IF NOT EXISTS users (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
   username VARCHAR(10) NOT NULL UNIQUE,
   email VARCHAR(80) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS posts (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  user_id BIGINT REFERENCES users(id),
-  title TEXT NOT NULL,
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER REFERENCES users(id),
+  title VARCHAR(100) NOT NULL,
   content TEXT NOT NULL,
   comments_allowed BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS comments (
-  id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-  post_id BIGINT REFERENCES posts(id),
-  user_id BIGINT REFERENCES users(id),
-  parent_comment_id BIGINT REFERENCES comments(id),
-  content TEXT NOT NULL CHECK (char_length(content) <= 2000),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  post_id INTEGER REFERENCES posts(id),
+  user_id INTEGER REFERENCES users(id),
+  parent_comment_id INTEGER REFERENCES comments(id),
+  content VARCHAR(2000) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments USING btree (post_id);
-
-CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON comments USING btree (parent_comment_id);
+CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON comments (parent_comment_id);
