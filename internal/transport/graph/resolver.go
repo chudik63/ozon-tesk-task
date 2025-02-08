@@ -7,4 +7,6 @@ type Resolver struct {
 	service Service
 }
 
-func NewResolver(service Service) *Resolver { return &Resolver{service} }
+func NewResolver(service Service) *Resolver {
+	return &Resolver{service}
+}

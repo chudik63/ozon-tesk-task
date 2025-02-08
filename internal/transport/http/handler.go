@@ -1,0 +1,55 @@
+package http
+
+import (
+	"ozon-tesk-task/internal/transport/graph"
+
+	"github.com/99designs/gqlgen/graphql/handler"
+	"github.com/99designs/gqlgen/graphql/handler/extension"
+	"github.com/99designs/gqlgen/graphql/handler/lru"
+	"github.com/99designs/gqlgen/graphql/handler/transport"
+	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/labstack/echo"
+	"github.com/vektah/gqlparser/v2/ast"
+)
+
+type Service interface {
+}
+
+type Handler struct {
+	service Service
+}
+
+func NewHandler(e *echo.Echo, service Service) {
+	handler := &Handler{}
+
+	e.POST("/query", handler.graphqlHandler())
+	e.GET("/", handler.playgroundHandler())
+}
+
+func (h *Handler) graphqlHandler() echo.HandlerFunc {
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: graph.NewResolver(h.service)}))
+	srv.AddTransport(transport.Options{})
+	srv.AddTransport(transport.GET{})
+	srv.AddTransport(transport.POST{})
+
+	srv.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+
+	srv.Use(extension.Introspection{})
+	srv.Use(extension.AutomaticPersistedQuery{
+		Cache: lru.New[string](100),
+	})
+
+	return func(c echo.Context) error {
+		srv.ServeHTTP(c.Response().Writer, c.Request())
+		return nil
+	}
+}
+
+func (h *Handler) playgroundHandler() echo.HandlerFunc {
+	srv := playground.Handler("GraphQL", "/query")
+
+	return func(c echo.Context) error {
+		srv.ServeHTTP(c.Response().Writer, c.Request())
+		return nil
+	}
+}

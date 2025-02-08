@@ -9,16 +9,11 @@ import (
 	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/internal/server"
 	"ozon-tesk-task/internal/service"
-	"ozon-tesk-task/internal/transport/graph"
+	"ozon-tesk-task/internal/transport/http"
 	"ozon-tesk-task/pkg/logger"
 	"syscall"
 
-	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/handler/extension"
-	"github.com/99designs/gqlgen/graphql/handler/transport"
-
-	"github.com/99designs/gqlgen/graphql/handler/lru"
-	"github.com/vektah/gqlparser/v2/ast"
+	"github.com/labstack/echo"
 	"go.uber.org/zap"
 )
 
@@ -36,19 +31,22 @@ func Run(ctx context.Context, cfg *config.Config) {
 
 	service := service.New(repo)
 
-	router := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: graph.NewResolver(service)}))
-	router.AddTransport(transport.Options{})
-	router.AddTransport(transport.GET{})
-	router.AddTransport(transport.POST{})
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			mainLogger.Debug(ctx, "request", zap.String("method", c.Request().Method), zap.String("path", c.Request().URL.Path), zap.Any("body", c.Request().Body))
 
-	router.SetQueryCache(lru.New[*ast.QueryDocument](1000))
+			if err := next(c); err != nil {
+				c.Error(err)
+			}
 
-	router.Use(extension.Introspection{})
-	router.Use(extension.AutomaticPersistedQuery{
-		Cache: lru.New[string](100),
+			return nil
+		}
 	})
 
-	srv := server.NewServer(cfg, router)
+	http.NewHandler(e, service)
+
+	srv := server.NewServer(cfg, e.Server.Handler)
 
 	go func() {
 		if err := srv.Run(ctx); err != nil {
