@@ -3,16 +3,29 @@ package config
 import (
 	"errors"
 	"fmt"
-	"ozon-tesk-task/internal/database/postgres"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
-type Config struct {
-	postgres.Config
+type PostgresConfig struct {
+	UserName string `env:"POSTGRES_USER"`
+	Password string `env:"POSTGRES_PASSWORD"`
+	Host     string `env:"POSTGRES_HOST"`
+	Port     string `env:"POSTGRES_PORT"`
+	DbName   string `env:"POSTGRES_DB"`
+}
 
+type SQLiteConfig struct {
+	DatabasePath string `env:"DATABASE_PATH"`
+}
+
+type Config struct {
+	PostgresConfig
+	SQLiteConfig
 	MigrationsPath string `env:"MIGRATIONS_PATH"`
-	ServicePort    string `env:"SERVICE_PORT"`
+	StorageType    string `env:"STORAGE_TYPE"`
+
+	ServicePort string `env:"SERVICE_PORT"`
 }
 
 func New() (*Config, error) {
