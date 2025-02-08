@@ -3,9 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"ozon-tesk-task/internal/app"
 	"ozon-tesk-task/internal/config"
-	"ozon-tesk-task/internal/database"
-	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/pkg/logger"
 )
 
@@ -26,14 +25,5 @@ func main() {
 		mainLogger.Fatal(ctx, err.Error())
 	}
 
-	mainLogger.Debug(ctx, "storage type: "+cfg.StorageType)
-	db, err := database.NewDatabase(ctx, cfg)
-	if err != nil {
-		mainLogger.Fatal(ctx, err.Error())
-	}
-
-	repo := repository.New(db)
-
-	_ = repo
-
+	app.Run(ctx, cfg)
 }
