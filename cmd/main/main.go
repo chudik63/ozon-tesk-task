@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"ozon-tesk-task/internal/config"
-	"ozon-tesk-task/internal/database/postgres"
+	"ozon-tesk-task/internal/database"
+	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/pkg/logger"
 )
 
@@ -25,15 +26,14 @@ func main() {
 		mainLogger.Fatal(ctx, err.Error())
 	}
 
-	db, err := postgres.New(cfg.Config)
+	mainLogger.Debug(ctx, "storage type: "+cfg.StorageType)
+	db, err := database.NewDatabase(ctx, cfg)
 	if err != nil {
 		mainLogger.Fatal(ctx, err.Error())
 	}
 
-	err = postgres.Migrate(ctx, cfg.Config, cfg.MigrationsPath)
-	if err != nil {
-		mainLogger.Fatal(ctx, err.Error())
-	}
+	repo := repository.New(db)
 
-	_ = db
+	_ = repo
+
 }
