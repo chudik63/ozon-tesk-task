@@ -9,12 +9,17 @@ services:
     container_name: ozon-test-service
     env_file:
       - .env
+    environment:
+      - STORAGE_TYPE=postgres
     ports:
       - "${SERVICE_PORT}:${SERVICE_PORT}"
     networks:
-      - ozon-test-task
+      - ozon-test-task-postgres
+    
   db:
     image: postgres:latest
+    env_file:
+      - .env
     container_name: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -25,7 +30,7 @@ services:
     ports:
       - "${POSTGRES_PORT}:${POSTGRES_PORT}"
     networks:
-      - ozon-test-task
+      - ozon-test-task-postgres
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -33,7 +38,7 @@ services:
       retries: 5
 
 networks:
-  ozon-test-task:
+  ozon-test-task-postgres:
 
 volumes:
   postgres_data:

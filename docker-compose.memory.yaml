@@ -1,0 +1,12 @@
+services:
+  service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ozon-test-service
+    env_file:
+      - .env
+    environment:
+      - STORAGE_TYPE=memory
+    ports:
+      - "${SERVICE_PORT}:${SERVICE_PORT}"
