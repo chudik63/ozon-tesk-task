@@ -27,13 +27,13 @@ func NewDatabase(ctx context.Context, cfg *config.Config) (*sql.Database, error)
 		dsn = fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable host=%s port=%s", cfg.UserName, cfg.Password, cfg.DbName, cfg.Host, cfg.Port)
 		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", cfg.UserName, cfg.Password, cfg.Host, cfg.Port, cfg.DbName)
 
-		l.Debug(ctx, "connecting to postgres database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
+		l.Debug(ctx, "Connecting to postgres database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
 	case "memory":
 		db = sql.New(cfg, "sqlite")
 		dsn = fmt.Sprintf("file:%s?mode=memory&cache=shared", cfg.DatabasePath)
 		dbURL = fmt.Sprintf("sqlite://%s", cfg.DatabasePath)
 
-		l.Debug(ctx, "connecting to sqlite database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
+		l.Debug(ctx, "Connecting to sqlite database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
 	default:
 		return nil, errors.New("invalid storage type")
 	}
@@ -45,12 +45,12 @@ func NewDatabase(ctx context.Context, cfg *config.Config) (*sql.Database, error)
 
 	err = db.MigrateUp(ctx, dbURL)
 	if err == sql.MigrationNoChange {
-		l.Info(ctx, "no change after migration")
+		l.Info(ctx, "No change after migration")
 	} else if err != nil {
 		return nil, err
 	}
 
-	l.Info(ctx, "migration complete succesfully")
+	l.Info(ctx, "Migration complete succesfully")
 
 	return db, nil
 }
