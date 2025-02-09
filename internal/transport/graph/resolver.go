@@ -7,8 +7,9 @@ import (
 )
 
 type Service interface {
-	ListPosts(ctx context.Context, limit, offset int32) ([]*model.Post, error)
-	// GetPost(id string) *model.Post
+	ListPosts(ctx context.Context, limit, offset int32, withComments bool) ([]*model.Post, error)
+	CreatePost(ctx context.Context, post *model.Post) (*model.Post, error)
+	GetPostById(ctx context.Context, id string, withComments bool) (*model.Post, error)
 }
 
 type Resolver struct {
