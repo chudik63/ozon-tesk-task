@@ -1,4 +1,4 @@
-package sql
+package database
 
 import (
 	"context"
@@ -19,7 +19,7 @@ var (
 )
 
 type Database struct {
-	db     *sql.DB
+	DB     *sql.DB
 	driver string
 	config *config.Config
 }
@@ -42,13 +42,13 @@ func (d *Database) Connect(ctx context.Context, dsn string) error {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	d.db = db
+	d.DB = db
 
 	return nil
 }
 
 func (d *Database) MigrateUp(ctx context.Context, dbURL string) error {
-	m, err := migrate.New("file://"+d.config.MigrationsPath, dbURL)
+	m, err := migrate.New(fmt.Sprintf("file://%s/%s", d.config.MigrationsPath, d.driver), dbURL)
 	if err != nil {
 		return fmt.Errorf("failed to create migration: %w", err)
 	}
@@ -66,5 +66,5 @@ func (d *Database) MigrateUp(ctx context.Context, dbURL string) error {
 }
 
 func (d *Database) Close() error {
-	return d.db.Close()
+	return d.DB.Close()
 }

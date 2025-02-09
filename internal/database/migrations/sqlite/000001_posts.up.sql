@@ -10,7 +10,8 @@ CREATE TABLE IF NOT EXISTS posts (
   title VARCHAR(100) NOT NULL,
   content TEXT NOT NULL,
   comments_allowed BOOLEAN DEFAULT TRUE,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME 
 );
 
 CREATE TABLE IF NOT EXISTS comments (
@@ -19,7 +20,8 @@ CREATE TABLE IF NOT EXISTS comments (
   user_id INTEGER REFERENCES users(id),
   parent_comment_id INTEGER REFERENCES comments(id),
   content VARCHAR(2000) NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME
 );
 
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments (post_id);
