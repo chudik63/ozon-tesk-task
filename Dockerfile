@@ -18,6 +18,6 @@ WORKDIR /root/
 
 COPY --from=build /build/ozontestservice .
 
-COPY --from=build /build/migrations ./migrations
+COPY --from=build /build/internal/database/migrations ./migrations
 
 CMD ["./ozontestservice"]
