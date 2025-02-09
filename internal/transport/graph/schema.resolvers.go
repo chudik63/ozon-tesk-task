@@ -35,6 +35,7 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 		Content:       input.Content,
 		AllowComments: input.AllowComments,
 		CreatedAt:     time.Now().Format(time.DateTime),
+		Author:        "0",
 	})
 	if err != nil {
 		r.logs.Error(ctx, "failed to create post", zap.String("err", err.Error()))
@@ -65,6 +66,7 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 		ParentID:  input.ParentID,
 		Content:   input.Content,
 		CreatedAt: time.Now().Format(time.DateTime),
+		Author:    "0",
 	})
 
 	if err != nil {
@@ -160,9 +162,9 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error
 			}
 		}
 
-		r.logs.Error(ctx, "failed to list posts", zap.String("err", err.Error()))
+		r.logs.Error(ctx, "failed to get post", zap.String("err", err.Error()))
 		return nil, &gqlerror.Error{
-			Message: "failed to list posts",
+			Message: "failed to get post",
 			Extensions: map[string]interface{}{
 				"code": http.StatusInternalServerError,
 			},

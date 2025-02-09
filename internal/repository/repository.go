@@ -73,14 +73,29 @@ func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset in
 
 	var posts []*model.Post
 
+	var comment model.Comment
+
+	commentMap := make(map[string]*model.Comment)
+
+	postMap := make(map[string]*model.Post)
+
 	for rows.Next() {
 		var post model.Post
 
-		if err := rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt); err != nil {
+		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &comment.ID, &comment.PostID, &comment.Author, &comment.ParentID, &comment.Content, &comment.CreatedAt); err != nil {
 			return nil, err
 		}
 
-		posts = append(posts, &post)
+		if _, exists := postMap[post.ID]; !exists {
+			postMap[post.ID] = &post
+			posts = append(posts, &post)
+		}
+
+		commentMap[comment.ID] = &comment
+	}
+
+	for _, post := range posts {
+		post.Comments = buildCommentsTree(commentMap)
 	}
 
 	if rows.Err() != nil {
@@ -143,7 +158,7 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 	rows, err := sq.Select("p.id", "p.user_id", "p.title", "p.content", "p.comments_allowed", "p.created_at", "c.id", "c.post_id", "c.user_id", "c.parent_comment_id", "c.content", "c.created_at").
 		From("posts p").
 		LeftJoin("comments c on p.id = c.post_id").
-		Where(sq.Eq{"id": id}).
+		Where(sq.Eq{"p.id": id}).
 		PlaceholderFormat(sq.Dollar).
 		RunWith(r.db.DB).
 		Query()
@@ -160,28 +175,18 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 	var post model.Post
 	var comment model.Comment
 
-	parentComments := make([]*model.Comment, 0)
 	commentMap := make(map[string]*model.Comment)
 
 	for rows.Next() {
 
-		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &comment.ID, &comment.PostID, &comment.Author, comment.ParentID, &comment.Content, &comment.CreatedAt); err != nil {
+		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &comment.ID, &comment.PostID, &comment.Author, &comment.ParentID, &comment.Content, &comment.CreatedAt); err != nil {
 			return nil, err
 		}
 
 		commentMap[comment.ID] = &comment
 	}
 
-	for _, comment := range commentMap {
-		if *comment.ParentID == "" {
-			parentComments = append(parentComments, comment)
-		} else {
-			parent := commentMap[*comment.ParentID]
-			parent.Replies = append(parent.Replies, comment)
-		}
-	}
-
-	post.Comments = parentComments
+	post.Comments = buildCommentsTree(commentMap)
 
 	if rows.Err() != nil {
 		return nil, err
@@ -225,4 +230,19 @@ func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) 
 	}
 
 	return id, nil
+}
+
+func buildCommentsTree(comments map[string]*model.Comment) []*model.Comment {
+	parentComments := make([]*model.Comment, 0)
+
+	for _, comment := range comments {
+		if *comment.ParentID == "" {
+			parentComments = append(parentComments, comment)
+		} else {
+			parent := comments[*comment.ParentID]
+			parent.Replies = append(parent.Replies, comment)
+		}
+	}
+
+	return parentComments
 }
