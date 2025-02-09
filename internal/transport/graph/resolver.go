@@ -10,6 +10,7 @@ type Service interface {
 	ListPosts(ctx context.Context, limit, offset int32, withComments bool) ([]*model.Post, error)
 	CreatePost(ctx context.Context, post *model.Post) (*model.Post, error)
 	GetPostById(ctx context.Context, id string, withComments bool) (*model.Post, error)
+	CreateComment(ctx context.Context, comment *model.Comment) (*model.Comment, error)
 }
 
 type Resolver struct {

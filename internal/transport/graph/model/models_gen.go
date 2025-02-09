@@ -4,8 +4,8 @@ package model
 
 type Comment struct {
 	ID        string     `json:"id"`
-	Post      *Post      `json:"post"`
-	Parent    *Comment   `json:"parent,omitempty"`
+	PostID    string     `json:"postId"`
+	ParentID  *string    `json:"parentId,omitempty"`
 	Author    string     `json:"author"`
 	Content   string     `json:"content"`
 	CreatedAt string     `json:"createdAt"`

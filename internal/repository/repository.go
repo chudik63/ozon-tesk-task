@@ -97,11 +97,14 @@ func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset in
 func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (string, error) {
 	var id string
 
-	user_id, _ := strconv.Atoi(post.Author)
+	userId, err := strconv.Atoi(post.Author)
+	if err != nil {
+		return "", err
+	}
 
-	err := sq.Insert("posts").
+	err = sq.Insert("posts").
 		Columns("user_id", "title", "content", "comments_allowed", "created_at").
-		Values(user_id, post.Title, post.Content, post.AllowComments, post.CreatedAt).
+		Values(userId, post.Title, post.Content, post.AllowComments, post.CreatedAt).
 		Suffix("RETURNING id").
 		PlaceholderFormat(sq.Dollar).
 		RunWith(r.db.DB).
@@ -146,34 +149,80 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 		Query()
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ErrWrongPostId
+		}
+
 		return nil, err
 	}
 	defer rows.Close()
 
 	var post model.Post
+	var comment model.Comment
+
+	parentComments := make([]*model.Comment, 0)
+	commentMap := make(map[string]*model.Comment)
 
 	for rows.Next() {
-		var (
-			id         string
-			postId     string
-			userId     string
-			parentId   string
-			content    string
-			created_at string
-		)
 
-		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &id, &postId, &userId, &parentId, &content, &created_at); err != nil {
+		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &comment.ID, &comment.PostID, &comment.Author, comment.ParentID, &comment.Content, &comment.CreatedAt); err != nil {
 			return nil, err
 		}
+
+		commentMap[comment.ID] = &comment
 	}
+
+	for _, comment := range commentMap {
+		if *comment.ParentID == "" {
+			parentComments = append(parentComments, comment)
+		} else {
+			parent := commentMap[*comment.ParentID]
+			parent.Replies = append(parent.Replies, comment)
+		}
+	}
+
+	post.Comments = parentComments
 
 	if rows.Err() != nil {
 		return nil, err
 	}
 
-	// if len(posts) == 0 {
-	// 	return nil, ErrNotFound
-	// }
-
 	return &post, nil
+}
+
+func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) (string, error) {
+	var id string
+
+	postId, err := strconv.Atoi(comment.PostID)
+	if err != nil {
+		return "", err
+	}
+
+	userId, err := strconv.Atoi(comment.Author)
+	if err != nil {
+		return "", err
+	}
+
+	values := []interface{}{postId, userId, comment.Content, comment.CreatedAt}
+	columns := []string{"post_id", "user_id", "content", "created_at"}
+
+	if comment.ParentID != nil {
+		columns = append(columns, "parent_comment_id")
+		values = append(values, *comment.ParentID)
+	}
+
+	err = sq.Insert("comments").
+		Columns(columns...).
+		Values(values...).
+		Suffix("RETURNING id").
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		QueryRow().
+		Scan(&id)
+
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
 }

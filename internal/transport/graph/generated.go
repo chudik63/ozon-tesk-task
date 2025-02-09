@@ -53,8 +53,8 @@ type ComplexityRoot struct {
 		Content   func(childComplexity int) int
 		CreatedAt func(childComplexity int) int
 		ID        func(childComplexity int) int
-		Parent    func(childComplexity int) int
-		Post      func(childComplexity int) int
+		ParentID  func(childComplexity int) int
+		PostID    func(childComplexity int) int
 		Replies   func(childComplexity int, limit *int32, offset *int32) int
 		UpdatedAt func(childComplexity int) int
 	}
@@ -144,19 +144,19 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 
 		return e.complexity.Comment.ID(childComplexity), true
 
-	case "Comment.parent":
-		if e.complexity.Comment.Parent == nil {
+	case "Comment.parentId":
+		if e.complexity.Comment.ParentID == nil {
 			break
 		}
 
-		return e.complexity.Comment.Parent(childComplexity), true
+		return e.complexity.Comment.ParentID(childComplexity), true
 
-	case "Comment.post":
-		if e.complexity.Comment.Post == nil {
+	case "Comment.postId":
+		if e.complexity.Comment.PostID == nil {
 			break
 		}
 
-		return e.complexity.Comment.Post(childComplexity), true
+		return e.complexity.Comment.PostID(childComplexity), true
 
 	case "Comment.replies":
 		if e.complexity.Comment.Replies == nil {
@@ -435,8 +435,8 @@ var sources = []*ast.Source{
 
 type Comment {
   id: ID!
-  post: Post!
-  parent: Comment
+  postId: ID!
+  parentId: ID
   author: ID!
   content: String!
   createdAt: String!
@@ -860,8 +860,8 @@ func (ec *executionContext) fieldContext_Comment_id(_ context.Context, field gra
 	return fc, nil
 }
 
-func (ec *executionContext) _Comment_post(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Comment_post(ctx, field)
+func (ec *executionContext) _Comment_postId(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_postId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -874,7 +874,7 @@ func (ec *executionContext) _Comment_post(ctx context.Context, field graphql.Col
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Post, nil
+		return obj.PostID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -886,44 +886,26 @@ func (ec *executionContext) _Comment_post(ctx context.Context, field graphql.Col
 		}
 		return graphql.Null
 	}
-	res := resTmp.(*model.Post)
+	res := resTmp.(string)
 	fc.Result = res
-	return ec.marshalNPost2ᚖozonᚑteskᚑtaskᚋinternalᚋtransportᚋgraphᚋmodelᚐPost(ctx, field.Selections, res)
+	return ec.marshalNID2string(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Comment_post(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_postId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Post_id(ctx, field)
-			case "title":
-				return ec.fieldContext_Post_title(ctx, field)
-			case "content":
-				return ec.fieldContext_Post_content(ctx, field)
-			case "author":
-				return ec.fieldContext_Post_author(ctx, field)
-			case "allowComments":
-				return ec.fieldContext_Post_allowComments(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Post_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_Post_updatedAt(ctx, field)
-			case "comments":
-				return ec.fieldContext_Post_comments(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Post", field.Name)
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
 }
 
-func (ec *executionContext) _Comment_parent(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
-	fc, err := ec.fieldContext_Comment_parent(ctx, field)
+func (ec *executionContext) _Comment_parentId(ctx context.Context, field graphql.CollectedField, obj *model.Comment) (ret graphql.Marshaler) {
+	fc, err := ec.fieldContext_Comment_parentId(ctx, field)
 	if err != nil {
 		return graphql.Null
 	}
@@ -936,7 +918,7 @@ func (ec *executionContext) _Comment_parent(ctx context.Context, field graphql.C
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return obj.Parent, nil
+		return obj.ParentID, nil
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -945,37 +927,19 @@ func (ec *executionContext) _Comment_parent(ctx context.Context, field graphql.C
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*model.Comment)
+	res := resTmp.(*string)
 	fc.Result = res
-	return ec.marshalOComment2ᚖozonᚑteskᚑtaskᚋinternalᚋtransportᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
+	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Comment_parent(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_parentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			switch field.Name {
-			case "id":
-				return ec.fieldContext_Comment_id(ctx, field)
-			case "post":
-				return ec.fieldContext_Comment_post(ctx, field)
-			case "parent":
-				return ec.fieldContext_Comment_parent(ctx, field)
-			case "author":
-				return ec.fieldContext_Comment_author(ctx, field)
-			case "content":
-				return ec.fieldContext_Comment_content(ctx, field)
-			case "createdAt":
-				return ec.fieldContext_Comment_createdAt(ctx, field)
-			case "updatedAt":
-				return ec.fieldContext_Comment_updatedAt(ctx, field)
-			case "replies":
-				return ec.fieldContext_Comment_replies(ctx, field)
-			}
-			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
+			return nil, errors.New("field of type ID does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1195,10 +1159,10 @@ func (ec *executionContext) fieldContext_Comment_replies(ctx context.Context, fi
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Comment_id(ctx, field)
-			case "post":
-				return ec.fieldContext_Comment_post(ctx, field)
-			case "parent":
-				return ec.fieldContext_Comment_parent(ctx, field)
+			case "postId":
+				return ec.fieldContext_Comment_postId(ctx, field)
+			case "parentId":
+				return ec.fieldContext_Comment_parentId(ctx, field)
 			case "author":
 				return ec.fieldContext_Comment_author(ctx, field)
 			case "content":
@@ -1341,10 +1305,10 @@ func (ec *executionContext) fieldContext_Mutation_createComment(ctx context.Cont
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Comment_id(ctx, field)
-			case "post":
-				return ec.fieldContext_Comment_post(ctx, field)
-			case "parent":
-				return ec.fieldContext_Comment_parent(ctx, field)
+			case "postId":
+				return ec.fieldContext_Comment_postId(ctx, field)
+			case "parentId":
+				return ec.fieldContext_Comment_parentId(ctx, field)
 			case "author":
 				return ec.fieldContext_Comment_author(ctx, field)
 			case "content":
@@ -1719,10 +1683,10 @@ func (ec *executionContext) fieldContext_Post_comments(ctx context.Context, fiel
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Comment_id(ctx, field)
-			case "post":
-				return ec.fieldContext_Comment_post(ctx, field)
-			case "parent":
-				return ec.fieldContext_Comment_parent(ctx, field)
+			case "postId":
+				return ec.fieldContext_Comment_postId(ctx, field)
+			case "parentId":
+				return ec.fieldContext_Comment_parentId(ctx, field)
 			case "author":
 				return ec.fieldContext_Comment_author(ctx, field)
 			case "content":
@@ -2077,10 +2041,10 @@ func (ec *executionContext) fieldContext_Subscription_commentAdded(ctx context.C
 			switch field.Name {
 			case "id":
 				return ec.fieldContext_Comment_id(ctx, field)
-			case "post":
-				return ec.fieldContext_Comment_post(ctx, field)
-			case "parent":
-				return ec.fieldContext_Comment_parent(ctx, field)
+			case "postId":
+				return ec.fieldContext_Comment_postId(ctx, field)
+			case "parentId":
+				return ec.fieldContext_Comment_parentId(ctx, field)
 			case "author":
 				return ec.fieldContext_Comment_author(ctx, field)
 			case "content":
@@ -4170,13 +4134,13 @@ func (ec *executionContext) _Comment(ctx context.Context, sel ast.SelectionSet, 
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "post":
-			out.Values[i] = ec._Comment_post(ctx, field, obj)
+		case "postId":
+			out.Values[i] = ec._Comment_postId(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
-		case "parent":
-			out.Values[i] = ec._Comment_parent(ctx, field, obj)
+		case "parentId":
+			out.Values[i] = ec._Comment_parentId(ctx, field, obj)
 		case "author":
 			out.Values[i] = ec._Comment_author(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

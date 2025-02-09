@@ -12,6 +12,7 @@ import (
 	"ozon-tesk-task/internal/preloads"
 	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/internal/transport/graph/model"
+	"ozon-tesk-task/pkg/pointer"
 	"time"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
@@ -22,7 +23,7 @@ import (
 func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error) {
 	if input.Title == "" || input.Content == "" {
 		return nil, &gqlerror.Error{
-			Message: "empty field",
+			Message: "invalid argument",
 			Extensions: map[string]interface{}{
 				"code": http.StatusBadRequest,
 			},
@@ -50,7 +51,43 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.CreateCommentInput) (*model.Comment, error) {
-	panic(fmt.Errorf("not implemented: CreateComment - createComment"))
+	if input.Content == "" || input.PostID == "" || input.PostID == "0" {
+		return nil, &gqlerror.Error{
+			Message: "invalid argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	comment, err := r.service.CreateComment(ctx, &model.Comment{
+		PostID:    input.PostID,
+		ParentID:  input.ParentID,
+		Content:   input.Content,
+		CreatedAt: time.Now().Format(time.DateTime),
+	})
+
+	if err != nil {
+		if errors.Is(err, repository.ErrCommentsNotAllowed) {
+			r.logs.Error(ctx, "can`t create comment", zap.String("err", err.Error()))
+			return nil, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusForbidden,
+				},
+			}
+		}
+
+		r.logs.Error(ctx, "failed to create comment", zap.String("err", err.Error()))
+		return nil, &gqlerror.Error{
+			Message: "failed to create comment",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return comment, nil
 }
 
 // Posts is the resolver for the posts field.
@@ -70,7 +107,7 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) 
 
 	r.logs.Info(ctx, "Loading posts", zap.Bool("with comments", withComments))
 
-	posts, err := r.service.ListPosts(ctx, *limit, *offset, withComments)
+	posts, err := r.service.ListPosts(ctx, pointer.Deref(limit, 10), pointer.Deref(offset, 0), withComments)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			r.logs.Error(ctx, "can`t list posts", zap.String("err", err.Error()))
