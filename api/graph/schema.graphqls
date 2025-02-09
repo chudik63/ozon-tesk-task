@@ -11,8 +11,8 @@ type Post {
 
 type Comment {
   id: ID!
-  post: Post!
-  parent: Comment
+  postId: ID!
+  parentId: ID
   author: ID!
   content: String!
   createdAt: String!
