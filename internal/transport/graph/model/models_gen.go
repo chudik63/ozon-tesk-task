@@ -2,5 +2,45 @@
 
 package model
 
+type Comment struct {
+	ID        string     `json:"id"`
+	Post      *Post      `json:"post"`
+	Parent    *Comment   `json:"parent,omitempty"`
+	Author    string     `json:"author"`
+	Content   string     `json:"content"`
+	CreatedAt string     `json:"createdAt"`
+	UpdatedAt string     `json:"updatedAt"`
+	Replies   []*Comment `json:"replies,omitempty"`
+}
+
+type CreateCommentInput struct {
+	PostID   string  `json:"postId"`
+	ParentID *string `json:"parentId,omitempty"`
+	Content  string  `json:"content"`
+}
+
+type CreatePostInput struct {
+	Title         string `json:"title"`
+	Content       string `json:"content"`
+	AllowComments bool   `json:"allowComments"`
+}
+
+type Mutation struct {
+}
+
+type Post struct {
+	ID            string     `json:"id"`
+	Title         string     `json:"title"`
+	Content       string     `json:"content"`
+	Author        *string    `json:"author,omitempty"`
+	AllowComments bool       `json:"allowComments"`
+	CreatedAt     string     `json:"createdAt"`
+	UpdatedAt     string     `json:"updatedAt"`
+	Comments      []*Comment `json:"comments,omitempty"`
+}
+
 type Query struct {
+}
+
+type Subscription struct {
 }
