@@ -2,6 +2,7 @@ package http
 
 import (
 	"ozon-tesk-task/internal/transport/graph"
+	"ozon-tesk-task/internal/transport/http/middleware"
 	"ozon-tesk-task/pkg/logger"
 
 	"github.com/99designs/gqlgen/graphql/handler"
@@ -40,6 +41,8 @@ func (h *Handler) graphqlHandler() echo.HandlerFunc {
 	srv.Use(extension.AutomaticPersistedQuery{
 		Cache: lru.New[string](100),
 	})
+
+	srv.AroundOperations(middleware.LogMiddleware(h.logs))
 
 	return func(c echo.Context) error {
 		srv.ServeHTTP(c.Response().Writer, c.Request())
