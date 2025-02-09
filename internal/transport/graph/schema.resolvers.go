@@ -9,45 +9,73 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"ozon-tesk-task/internal/preloads"
 	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/internal/transport/graph/model"
+	"time"
 
 	"github.com/vektah/gqlparser/v2/gqlerror"
 	"go.uber.org/zap"
 )
 
-const (
-	defaultLimit  = int32(10)
-	defaultOffset = int32(0)
-)
-
 // CreatePost is the resolver for the createPost field.
-func (r *mutationResolver) CreatePost(ctx context.Context, title string, content string, allowComments bool) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: CreatePost - createPost"))
+func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error) {
+	if input.Title == "" || input.Content == "" {
+		return nil, &gqlerror.Error{
+			Message: "empty field",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	post, err := r.service.CreatePost(ctx, &model.Post{
+		Title:         input.Title,
+		Content:       input.Content,
+		AllowComments: input.AllowComments,
+		CreatedAt:     time.Now().Format(time.DateTime),
+	})
+	if err != nil {
+		r.logs.Error(ctx, "failed to create post", zap.String("err", err.Error()))
+		return nil, &gqlerror.Error{
+			Message: "failed to create post",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return post, nil
 }
 
 // CreateComment is the resolver for the createComment field.
-func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, content string) (*model.Comment, error) {
+func (r *mutationResolver) CreateComment(ctx context.Context, input model.CreateCommentInput) (*model.Comment, error) {
 	panic(fmt.Errorf("not implemented: CreateComment - createComment"))
 }
 
 // Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) ([]*model.Post, error) {
-	if limit == nil {
-		limit = new(int32)
-		*limit = defaultLimit
-	}
-	if offset == nil {
-		offset = new(int32)
-		*offset = defaultOffset
+	var (
+		withComments bool
+	)
+
+	pl := preloads.GetPreloads(ctx)
+
+	for _, field := range pl {
+		if field == "comments" {
+			withComments = true
+			break
+		}
 	}
 
-	posts, err := r.service.ListPosts(ctx, *limit, *offset)
+	r.logs.Info(ctx, "Loading posts", zap.Bool("with comments", withComments))
+
+	posts, err := r.service.ListPosts(ctx, *limit, *offset, withComments)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
-			r.logs.Info(ctx, "can`t list posts", zap.String("err", err.Error()))
+			r.logs.Error(ctx, "can`t list posts", zap.String("err", err.Error()))
 			return nil, &gqlerror.Error{
-				Err: err,
+				Message: err.Error(),
 				Extensions: map[string]interface{}{
 					"code": http.StatusNotFound,
 				},
@@ -56,7 +84,7 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) 
 
 		r.logs.Error(ctx, "failed to list posts", zap.String("err", err.Error()))
 		return nil, &gqlerror.Error{
-			Err: err,
+			Message: "failed to list posts",
 			Extensions: map[string]interface{}{
 				"code": http.StatusInternalServerError,
 			},
@@ -68,7 +96,43 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) 
 
 // Post is the resolver for the post field.
 func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: Post - post"))
+	var (
+		withComments bool
+	)
+
+	pl := preloads.GetPreloads(ctx)
+
+	for _, field := range pl {
+		if field == "comments" {
+			withComments = true
+			break
+		}
+	}
+
+	r.logs.Info(ctx, "Loading post", zap.String("id", id), zap.Bool("with comments", withComments))
+
+	post, err := r.service.GetPostById(ctx, id, withComments)
+	if err != nil {
+		if errors.Is(err, repository.ErrWrongPostId) {
+			r.logs.Error(ctx, "post with such id does not exits", zap.String("err", err.Error()))
+			return nil, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusNotFound,
+				},
+			}
+		}
+
+		r.logs.Error(ctx, "failed to list posts", zap.String("err", err.Error()))
+		return nil, &gqlerror.Error{
+			Message: "failed to list posts",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return post, nil
 }
 
 // CommentAdded is the resolver for the commentAdded field.

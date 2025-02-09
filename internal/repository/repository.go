@@ -1,11 +1,179 @@
 package repository
 
-import "ozon-tesk-task/internal/database/sql"
+import (
+	"context"
+	"database/sql"
+	"errors"
+	"ozon-tesk-task/internal/database"
+	"ozon-tesk-task/internal/transport/graph/model"
+	"strconv"
+
+	sq "github.com/Masterminds/squirrel"
+)
 
 type Repository struct {
-	db *sql.Database
+	db *database.Database
 }
 
-func New(db *sql.Database) *Repository {
+func New(db *database.Database) *Repository {
 	return &Repository{db: db}
+}
+
+func (r *Repository) ListPosts(ctx context.Context, limit, offset int32) ([]*model.Post, error) {
+	rows, err := sq.Select("id", "user_id", "title", "content", "comments_allowed", "created_at").
+		From("posts").
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		Query()
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*model.Post
+
+	for rows.Next() {
+		var post model.Post
+
+		if err := rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, &post)
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	if len(posts) == 0 {
+		return nil, ErrNotFound
+	}
+
+	return posts, nil
+}
+
+func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset int32) ([]*model.Post, error) {
+	rows, err := sq.Select("p.id", "p.user_id", "p.title", "p.content", "p.comments_allowed", "p.created_at", "c.id", "c.post_id", "c.user_id", "c.parent_comment_id", "c.content", "c.created_at").
+		From("posts p").
+		LeftJoin("comments c on p.id = c.post_id").
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		Query()
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var posts []*model.Post
+
+	for rows.Next() {
+		var post model.Post
+
+		if err := rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt); err != nil {
+			return nil, err
+		}
+
+		posts = append(posts, &post)
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	if len(posts) == 0 {
+		return nil, ErrNotFound
+	}
+
+	return posts, nil
+}
+
+func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (string, error) {
+	var id string
+
+	user_id, _ := strconv.Atoi(post.Author)
+
+	err := sq.Insert("posts").
+		Columns("user_id", "title", "content", "comments_allowed", "created_at").
+		Values(user_id, post.Title, post.Content, post.AllowComments, post.CreatedAt).
+		Suffix("RETURNING id").
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		QueryRow().
+		Scan(&id)
+
+	if err != nil {
+		return "", err
+	}
+
+	return id, nil
+}
+
+func (r *Repository) GetPostById(ctx context.Context, id string) (*model.Post, error) {
+	var post model.Post
+
+	err := sq.Select("id", "user_id", "title", "content", "comments_allowed", "created_at").
+		From("posts").
+		Where(sq.Eq{"id": id}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		QueryRow().
+		Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrWrongPostId
+		}
+		return nil, err
+	}
+
+	return &post, nil
+}
+
+func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*model.Post, error) {
+	rows, err := sq.Select("p.id", "p.user_id", "p.title", "p.content", "p.comments_allowed", "p.created_at", "c.id", "c.post_id", "c.user_id", "c.parent_comment_id", "c.content", "c.created_at").
+		From("posts p").
+		LeftJoin("comments c on p.id = c.post_id").
+		Where(sq.Eq{"id": id}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		Query()
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var post model.Post
+
+	for rows.Next() {
+		var (
+			id         string
+			postId     string
+			userId     string
+			parentId   string
+			content    string
+			created_at string
+		)
+
+		if err = rows.Scan(&post.ID, &post.Author, &post.Title, &post.Content, &post.AllowComments, &post.CreatedAt, &id, &postId, &userId, &parentId, &content, &created_at); err != nil {
+			return nil, err
+		}
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	// if len(posts) == 0 {
+	// 	return nil, ErrNotFound
+	// }
+
+	return &post, nil
 }
