@@ -32,19 +32,8 @@ func Run(ctx context.Context, cfg *config.Config) {
 	service := service.New(repo)
 
 	e := echo.New()
-	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) error {
-			mainLogger.Debug(ctx, "request", zap.String("method", c.Request().Method), zap.String("path", c.Request().URL.Path), zap.Any("body", c.Request().Body))
 
-			if err := next(c); err != nil {
-				c.Error(err)
-			}
-
-			return nil
-		}
-	})
-
-	http.NewHandler(e, service)
+	http.NewHandler(e, service, mainLogger)
 
 	srv := server.NewServer(cfg, e.Server.Handler)
 

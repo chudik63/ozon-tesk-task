@@ -2,6 +2,7 @@ package http
 
 import (
 	"ozon-tesk-task/internal/transport/graph"
+	"ozon-tesk-task/pkg/logger"
 
 	"github.com/99designs/gqlgen/graphql/handler"
 	"github.com/99designs/gqlgen/graphql/handler/extension"
@@ -12,22 +13,23 @@ import (
 	"github.com/vektah/gqlparser/v2/ast"
 )
 
-type Service interface {
-}
-
 type Handler struct {
-	service Service
+	service graph.Service
+	logs    logger.Logger
 }
 
-func NewHandler(e *echo.Echo, service Service) {
-	handler := &Handler{}
+func NewHandler(e *echo.Echo, service graph.Service, logs logger.Logger) {
+	handler := &Handler{
+		service: service,
+		logs:    logs,
+	}
 
 	e.POST("/query", handler.graphqlHandler())
 	e.GET("/", handler.playgroundHandler())
 }
 
 func (h *Handler) graphqlHandler() echo.HandlerFunc {
-	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: graph.NewResolver(h.service)}))
+	srv := handler.New(graph.NewExecutableSchema(graph.Config{Resolvers: graph.NewResolver(h.service, h.logs)}))
 	srv.AddTransport(transport.Options{})
 	srv.AddTransport(transport.GET{})
 	srv.AddTransport(transport.POST{})
