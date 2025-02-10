@@ -13,14 +13,22 @@ type Service interface {
 	CreateComment(ctx context.Context, comment *model.Comment) (*model.Comment, error)
 }
 
+type PubSub interface {
+	Subscribe(ctx context.Context, postId int32) <-chan *model.Comment
+	Unsubscribe(ctx context.Context, postId int32, ch chan *model.Comment)
+	Publish(ctx context.Context, comment *model.Comment)
+}
+
 type Resolver struct {
 	service Service
 	logs    logger.Logger
+	pubsub  PubSub
 }
 
-func NewResolver(srv Service, logs logger.Logger) *Resolver {
+func NewResolver(srv Service, logs logger.Logger, pubsub PubSub) *Resolver {
 	return &Resolver{
 		service: srv,
 		logs:    logs,
+		pubsub:  pubsub,
 	}
 }

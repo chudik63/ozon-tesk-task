@@ -7,7 +7,6 @@ package graph
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"ozon-tesk-task/internal/preloads"
 	"ozon-tesk-task/internal/repository"
@@ -133,6 +132,8 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 		}
 	}
 
+	r.pubsub.Publish(ctx, comment)
+
 	return comment, nil
 }
 
@@ -244,7 +245,11 @@ func (r *queryResolver) Post(ctx context.Context, id int32) (*model.Post, error)
 
 // CommentAdded is the resolver for the commentAdded field.
 func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID int32) (<-chan *model.Comment, error) {
-	panic(fmt.Errorf("not implemented: CommentAdded - commentAdded"))
+	r.logs.Debug(ctx, "Creating new subscription", zap.Int32("postId", postID))
+
+	ch := r.pubsub.Subscribe(ctx, postID)
+
+	return ch, nil
 }
 
 // Mutation returns MutationResolver implementation.
