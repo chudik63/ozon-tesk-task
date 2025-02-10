@@ -55,7 +55,7 @@ type ComplexityRoot struct {
 		ID        func(childComplexity int) int
 		ParentID  func(childComplexity int) int
 		PostID    func(childComplexity int) int
-		Replies   func(childComplexity int, limit *int32, offset *int32) int
+		Replies   func(childComplexity int) int
 		UpdatedAt func(childComplexity int) int
 	}
 
@@ -67,7 +67,7 @@ type ComplexityRoot struct {
 	Post struct {
 		AllowComments func(childComplexity int) int
 		Author        func(childComplexity int) int
-		Comments      func(childComplexity int, limit *int32, offset *int32) int
+		Comments      func(childComplexity int, page *int32, limit *int32) int
 		Content       func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
 		ID            func(childComplexity int) int
@@ -76,12 +76,12 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		Post  func(childComplexity int, id string) int
-		Posts func(childComplexity int, limit *int32, offset *int32) int
+		Post  func(childComplexity int, id int32) int
+		Posts func(childComplexity int, page *int32, limit *int32) int
 	}
 
 	Subscription struct {
-		CommentAdded func(childComplexity int, postID string) int
+		CommentAdded func(childComplexity int, postID int32) int
 	}
 }
 
@@ -90,11 +90,11 @@ type MutationResolver interface {
 	CreateComment(ctx context.Context, input model.CreateCommentInput) (*model.Comment, error)
 }
 type QueryResolver interface {
-	Posts(ctx context.Context, limit *int32, offset *int32) ([]*model.Post, error)
-	Post(ctx context.Context, id string) (*model.Post, error)
+	Posts(ctx context.Context, page *int32, limit *int32) ([]*model.Post, error)
+	Post(ctx context.Context, id int32) (*model.Post, error)
 }
 type SubscriptionResolver interface {
-	CommentAdded(ctx context.Context, postID string) (<-chan *model.Comment, error)
+	CommentAdded(ctx context.Context, postID int32) (<-chan *model.Comment, error)
 }
 
 type executableSchema struct {
@@ -163,12 +163,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Comment_replies_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Comment.Replies(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
+		return e.complexity.Comment.Replies(childComplexity), true
 
 	case "Comment.updatedAt":
 		if e.complexity.Comment.UpdatedAt == nil {
@@ -225,7 +220,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Post.Comments(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
+		return e.complexity.Post.Comments(childComplexity, args["page"].(*int32), args["limit"].(*int32)), true
 
 	case "Post.content":
 		if e.complexity.Post.Content == nil {
@@ -272,7 +267,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Post(childComplexity, args["id"].(string)), true
+		return e.complexity.Query.Post(childComplexity, args["id"].(int32)), true
 
 	case "Query.posts":
 		if e.complexity.Query.Posts == nil {
@@ -284,7 +279,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Query.Posts(childComplexity, args["limit"].(*int32), args["offset"].(*int32)), true
+		return e.complexity.Query.Posts(childComplexity, args["page"].(*int32), args["limit"].(*int32)), true
 
 	case "Subscription.commentAdded":
 		if e.complexity.Subscription.CommentAdded == nil {
@@ -296,7 +291,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			return 0, false
 		}
 
-		return e.complexity.Subscription.CommentAdded(childComplexity, args["postId"].(string)), true
+		return e.complexity.Subscription.CommentAdded(childComplexity, args["postId"].(int32)), true
 
 	}
 	return 0, false
@@ -423,31 +418,31 @@ func (ec *executionContext) introspectType(name string) (*introspection.Type, er
 
 var sources = []*ast.Source{
 	{Name: "../../../api/graph/schema.graphqls", Input: `type Post {
-  id: ID!
+  id: Int!
   title: String!
   content: String!
-  author: ID!
+  author: Int!
   allowComments: Boolean!
   createdAt: String!
   updatedAt: String!
-  comments(limit: Int, offset: Int): [Comment]
+  comments(page: Int = 1, limit: Int = 10): [Comment]
 }
 
 type Comment {
-  id: ID!
-  postId: ID!
-  parentId: ID
-  author: ID!
+  id: Int!
+  postId: Int!
+  parentId: Int
+  author: Int!
   content: String!
   createdAt: String!
   updatedAt: String!
-  replies(limit: Int, offset: Int): [Comment]
+  replies: [Comment]
 }
 
 type Query {
-  posts(limit: Int = 10, offset: Int = 0): [Post]
+  posts(page: Int = 1, limit: Int = 10): [Post]
 
-  post(id: ID!): Post
+  post(id: Int!): Post
 }
 
 type Mutation {
@@ -457,7 +452,7 @@ type Mutation {
 }
 
 type Subscription {
-  commentAdded(postId: ID!): Comment!
+  commentAdded(postId: Int!): Comment!
 }
 
 input CreatePostInput {
@@ -467,8 +462,8 @@ input CreatePostInput {
 }
 
 input CreateCommentInput {
-  postId: ID!
-  parentId: ID
+  postId: Int!
+  parentId: Int
   content: String!
 }`, BuiltIn: false},
 }
@@ -477,47 +472,6 @@ var parsedSchema = gqlparser.MustLoadSchema(sources...)
 // endregion ************************** generated!.gotpl **************************
 
 // region    ***************************** args.gotpl *****************************
-
-func (ec *executionContext) field_Comment_replies_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Comment_replies_argsLimit(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["limit"] = arg0
-	arg1, err := ec.field_Comment_replies_argsOffset(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["offset"] = arg1
-	return args, nil
-}
-func (ec *executionContext) field_Comment_replies_argsLimit(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-	if tmp, ok := rawArgs["limit"]; ok {
-		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
-	}
-
-	var zeroVal *int32
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Comment_replies_argsOffset(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
-	if tmp, ok := rawArgs["offset"]; ok {
-		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
-	}
-
-	var zeroVal *int32
-	return zeroVal, nil
-}
 
 func (ec *executionContext) field_Mutation_createComment_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
@@ -568,24 +522,24 @@ func (ec *executionContext) field_Mutation_createPost_argsInput(
 func (ec *executionContext) field_Post_comments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Post_comments_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Post_comments_argsPage(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg0
-	arg1, err := ec.field_Post_comments_argsOffset(ctx, rawArgs)
+	args["page"] = arg0
+	arg1, err := ec.field_Post_comments_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg1
+	args["limit"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Post_comments_argsLimit(
+func (ec *executionContext) field_Post_comments_argsPage(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-	if tmp, ok := rawArgs["limit"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+	if tmp, ok := rawArgs["page"]; ok {
 		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
 	}
 
@@ -593,12 +547,12 @@ func (ec *executionContext) field_Post_comments_argsLimit(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Post_comments_argsOffset(
+func (ec *executionContext) field_Post_comments_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
-	if tmp, ok := rawArgs["offset"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
 		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
 	}
 
@@ -642,37 +596,37 @@ func (ec *executionContext) field_Query_post_args(ctx context.Context, rawArgs m
 func (ec *executionContext) field_Query_post_argsID(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (string, error) {
+) (int32, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("id"))
 	if tmp, ok := rawArgs["id"]; ok {
-		return ec.unmarshalNID2string(ctx, tmp)
+		return ec.unmarshalNInt2int32(ctx, tmp)
 	}
 
-	var zeroVal string
+	var zeroVal int32
 	return zeroVal, nil
 }
 
 func (ec *executionContext) field_Query_posts_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
-	arg0, err := ec.field_Query_posts_argsLimit(ctx, rawArgs)
+	arg0, err := ec.field_Query_posts_argsPage(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["limit"] = arg0
-	arg1, err := ec.field_Query_posts_argsOffset(ctx, rawArgs)
+	args["page"] = arg0
+	arg1, err := ec.field_Query_posts_argsLimit(ctx, rawArgs)
 	if err != nil {
 		return nil, err
 	}
-	args["offset"] = arg1
+	args["limit"] = arg1
 	return args, nil
 }
-func (ec *executionContext) field_Query_posts_argsLimit(
+func (ec *executionContext) field_Query_posts_argsPage(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-	if tmp, ok := rawArgs["limit"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
+	if tmp, ok := rawArgs["page"]; ok {
 		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
 	}
 
@@ -680,12 +634,12 @@ func (ec *executionContext) field_Query_posts_argsLimit(
 	return zeroVal, nil
 }
 
-func (ec *executionContext) field_Query_posts_argsOffset(
+func (ec *executionContext) field_Query_posts_argsLimit(
 	ctx context.Context,
 	rawArgs map[string]any,
 ) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("offset"))
-	if tmp, ok := rawArgs["offset"]; ok {
+	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
+	if tmp, ok := rawArgs["limit"]; ok {
 		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
 	}
 
@@ -706,13 +660,13 @@ func (ec *executionContext) field_Subscription_commentAdded_args(ctx context.Con
 func (ec *executionContext) field_Subscription_commentAdded_argsPostID(
 	ctx context.Context,
 	rawArgs map[string]any,
-) (string, error) {
+) (int32, error) {
 	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("postId"))
 	if tmp, ok := rawArgs["postId"]; ok {
-		return ec.unmarshalNID2string(ctx, tmp)
+		return ec.unmarshalNInt2int32(ctx, tmp)
 	}
 
-	var zeroVal string
+	var zeroVal int32
 	return zeroVal, nil
 }
 
@@ -842,9 +796,9 @@ func (ec *executionContext) _Comment_id(ctx context.Context, field graphql.Colle
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int32)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Comment_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -854,7 +808,7 @@ func (ec *executionContext) fieldContext_Comment_id(_ context.Context, field gra
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -886,9 +840,9 @@ func (ec *executionContext) _Comment_postId(ctx context.Context, field graphql.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int32)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Comment_postId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -898,7 +852,7 @@ func (ec *executionContext) fieldContext_Comment_postId(_ context.Context, field
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -927,9 +881,9 @@ func (ec *executionContext) _Comment_parentId(ctx context.Context, field graphql
 	if resTmp == nil {
 		return graphql.Null
 	}
-	res := resTmp.(*string)
+	res := resTmp.(*int32)
 	fc.Result = res
-	return ec.marshalOID2ᚖstring(ctx, field.Selections, res)
+	return ec.marshalOInt2ᚖint32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Comment_parentId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -939,7 +893,7 @@ func (ec *executionContext) fieldContext_Comment_parentId(_ context.Context, fie
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -971,9 +925,9 @@ func (ec *executionContext) _Comment_author(ctx context.Context, field graphql.C
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int32)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Comment_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -983,7 +937,7 @@ func (ec *executionContext) fieldContext_Comment_author(_ context.Context, field
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1149,7 +1103,7 @@ func (ec *executionContext) _Comment_replies(ctx context.Context, field graphql.
 	return ec.marshalOComment2ᚕᚖozonᚑteskᚑtaskᚋinternalᚋtransportᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Comment_replies(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Comment_replies(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Comment",
 		Field:      field,
@@ -1176,17 +1130,6 @@ func (ec *executionContext) fieldContext_Comment_replies(ctx context.Context, fi
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Comment_replies_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -1363,9 +1306,9 @@ func (ec *executionContext) _Post_id(ctx context.Context, field graphql.Collecte
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int32)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Post_id(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1375,7 +1318,7 @@ func (ec *executionContext) fieldContext_Post_id(_ context.Context, field graphq
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1495,9 +1438,9 @@ func (ec *executionContext) _Post_author(ctx context.Context, field graphql.Coll
 		}
 		return graphql.Null
 	}
-	res := resTmp.(string)
+	res := resTmp.(int32)
 	fc.Result = res
-	return ec.marshalNID2string(ctx, field.Selections, res)
+	return ec.marshalNInt2int32(ctx, field.Selections, res)
 }
 
 func (ec *executionContext) fieldContext_Post_author(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
@@ -1507,7 +1450,7 @@ func (ec *executionContext) fieldContext_Post_author(_ context.Context, field gr
 		IsMethod:   false,
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
-			return nil, errors.New("field of type ID does not have child fields")
+			return nil, errors.New("field of type Int does not have child fields")
 		},
 	}
 	return fc, nil
@@ -1729,7 +1672,7 @@ func (ec *executionContext) _Query_posts(ctx context.Context, field graphql.Coll
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Posts(rctx, fc.Args["limit"].(*int32), fc.Args["offset"].(*int32))
+		return ec.resolvers.Query().Posts(rctx, fc.Args["page"].(*int32), fc.Args["limit"].(*int32))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -1799,7 +1742,7 @@ func (ec *executionContext) _Query_post(ctx context.Context, field graphql.Colle
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Query().Post(rctx, fc.Args["id"].(string))
+		return ec.resolvers.Query().Post(rctx, fc.Args["id"].(int32))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -2000,7 +1943,7 @@ func (ec *executionContext) _Subscription_commentAdded(ctx context.Context, fiel
 	}()
 	resTmp, err := ec.ResolverMiddleware(ctx, func(rctx context.Context) (any, error) {
 		ctx = rctx // use context from middleware stack in children
-		return ec.resolvers.Subscription().CommentAdded(rctx, fc.Args["postId"].(string))
+		return ec.resolvers.Subscription().CommentAdded(rctx, fc.Args["postId"].(int32))
 	})
 	if err != nil {
 		ec.Error(ctx, err)
@@ -4040,14 +3983,14 @@ func (ec *executionContext) unmarshalInputCreateCommentInput(ctx context.Context
 		switch k {
 		case "postId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("postId"))
-			data, err := ec.unmarshalNID2string(ctx, v)
+			data, err := ec.unmarshalNInt2int32(ctx, v)
 			if err != nil {
 				return it, err
 			}
 			it.PostID = data
 		case "parentId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("parentId"))
-			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			data, err := ec.unmarshalOInt2ᚖint32(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -4795,13 +4738,13 @@ func (ec *executionContext) unmarshalNCreatePostInput2ozonᚑteskᚑtaskᚋinter
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
-	res, err := graphql.UnmarshalID(v)
+func (ec *executionContext) unmarshalNInt2int32(ctx context.Context, v any) (int32, error) {
+	res, err := graphql.UnmarshalInt32(v)
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNID2string(ctx context.Context, sel ast.SelectionSet, v string) graphql.Marshaler {
-	res := graphql.MarshalID(v)
+func (ec *executionContext) marshalNInt2int32(ctx context.Context, sel ast.SelectionSet, v int32) graphql.Marshaler {
+	res := graphql.MarshalInt32(v)
 	if res == graphql.Null {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
 			ec.Errorf(ctx, "the requested element is null which the schema does not allow")
@@ -5164,22 +5107,6 @@ func (ec *executionContext) marshalOComment2ᚖozonᚑteskᚑtaskᚋinternalᚋt
 		return graphql.Null
 	}
 	return ec._Comment(ctx, sel, v)
-}
-
-func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
-	if v == nil {
-		return nil, nil
-	}
-	res, err := graphql.UnmarshalID(v)
-	return &res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.SelectionSet, v *string) graphql.Marshaler {
-	if v == nil {
-		return graphql.Null
-	}
-	res := graphql.MarshalID(*v)
-	return res
 }
 
 func (ec *executionContext) unmarshalOInt2ᚖint32(ctx context.Context, v any) (*int32, error) {

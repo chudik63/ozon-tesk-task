@@ -7,7 +7,6 @@ import (
 	"ozon-tesk-task/internal/database"
 	"ozon-tesk-task/internal/transport/graph/model"
 	"ozon-tesk-task/pkg/pointer"
-	"strconv"
 
 	sq "github.com/Masterminds/squirrel"
 )
@@ -75,18 +74,18 @@ func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset in
 
 	var posts []*model.Post
 
-	commentMap := make(map[string][]*model.Comment)
+	commentMap := make(map[int32][]*model.Comment)
 
-	postMap := make(map[string]*model.Post)
+	postMap := make(map[int32]*model.Post)
 
 	for rows.Next() {
 		var (
 			post      model.Post
 			comment   model.Comment
-			id        sql.NullString
-			postId    sql.NullString
-			author    sql.NullString
-			parentId  sql.NullString
+			id        sql.NullInt32
+			postId    sql.NullInt32
+			author    sql.NullInt32
+			parentId  sql.NullInt32
 			content   sql.NullString
 			createdAt sql.NullString
 		)
@@ -97,10 +96,10 @@ func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset in
 
 		if id.Valid {
 			comment = model.Comment{
-				ID:        id.String,
-				PostID:    postId.String,
-				Author:    author.String,
-				ParentID:  &parentId.String,
+				ID:        id.Int32,
+				PostID:    postId.Int32,
+				Author:    author.Int32,
+				ParentID:  &parentId.Int32,
 				Content:   content.String,
 				CreatedAt: createdAt.String,
 			}
@@ -129,17 +128,12 @@ func (r *Repository) ListPostsWithComments(ctx context.Context, limit, offset in
 	return posts, nil
 }
 
-func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (string, error) {
-	var id string
+func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (int32, error) {
+	var id int32
 
-	userId, err := strconv.Atoi(post.Author)
-	if err != nil {
-		return "", err
-	}
-
-	err = sq.Insert("posts").
+	err := sq.Insert("posts").
 		Columns("user_id", "title", "content", "comments_allowed", "created_at").
-		Values(userId, post.Title, post.Content, post.AllowComments, post.CreatedAt).
+		Values(post.Author, post.Title, post.Content, post.AllowComments, post.CreatedAt).
 		Suffix("RETURNING id").
 		PlaceholderFormat(sq.Dollar).
 		RunWith(r.db.DB).
@@ -147,13 +141,13 @@ func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (string, 
 		Scan(&id)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	return id, nil
 }
 
-func (r *Repository) GetPostById(ctx context.Context, id string) (*model.Post, error) {
+func (r *Repository) GetPostById(ctx context.Context, id int32) (*model.Post, error) {
 	var post model.Post
 
 	err := sq.Select("id", "user_id", "title", "content", "comments_allowed", "created_at").
@@ -174,7 +168,7 @@ func (r *Repository) GetPostById(ctx context.Context, id string) (*model.Post, e
 	return &post, nil
 }
 
-func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*model.Post, error) {
+func (r *Repository) GetPostByIdWithComments(ctx context.Context, id int32) (*model.Post, error) {
 	rows, err := sq.Select("p.id", "p.user_id", "p.title", "p.content", "p.comments_allowed", "p.created_at", "c.id", "c.post_id", "c.user_id", "c.parent_comment_id", "c.content", "c.created_at").
 		From("posts p").
 		LeftJoin("comments c on p.id = c.post_id").
@@ -183,12 +177,7 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 		PlaceholderFormat(sq.Dollar).
 		RunWith(r.db.DB).
 		Query()
-
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ErrWrongPostId
-		}
-
 		return nil, err
 	}
 	defer rows.Close()
@@ -197,13 +186,17 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 
 	comments := make([]*model.Comment, 0)
 
-	for rows.Next() {
+	if !rows.Next() {
+		return nil, ErrWrongPostId
+	}
+
+	for {
 		var (
 			comment   model.Comment
-			id        sql.NullString
-			postId    sql.NullString
-			author    sql.NullString
-			parentId  sql.NullString
+			id        sql.NullInt32
+			postId    sql.NullInt32
+			author    sql.NullInt32
+			parentId  sql.NullInt32
 			content   sql.NullString
 			createdAt sql.NullString
 		)
@@ -214,15 +207,19 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 
 		if id.Valid {
 			comment = model.Comment{
-				ID:        id.String,
-				PostID:    postId.String,
-				Author:    author.String,
-				ParentID:  &parentId.String,
+				ID:        id.Int32,
+				PostID:    postId.Int32,
+				Author:    author.Int32,
+				ParentID:  &parentId.Int32,
 				Content:   content.String,
 				CreatedAt: createdAt.String,
 			}
 
 			comments = append(comments, &comment)
+		}
+
+		if !rows.Next() {
+			break
 		}
 	}
 
@@ -235,20 +232,10 @@ func (r *Repository) GetPostByIdWithComments(ctx context.Context, id string) (*m
 	return &post, nil
 }
 
-func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) (string, error) {
-	var id string
+func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) (int32, error) {
+	var id int32
 
-	postId, err := strconv.Atoi(comment.PostID)
-	if err != nil {
-		return "", err
-	}
-
-	userId, err := strconv.Atoi(comment.Author)
-	if err != nil {
-		return "", err
-	}
-
-	values := []interface{}{postId, userId, comment.Content, comment.CreatedAt}
+	values := []interface{}{comment.PostID, comment.Author, comment.Content, comment.CreatedAt}
 	columns := []string{"post_id", "user_id", "content", "created_at"}
 
 	if comment.ParentID != nil {
@@ -256,7 +243,7 @@ func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) 
 		values = append(values, *comment.ParentID)
 	}
 
-	err = sq.Insert("comments").
+	err := sq.Insert("comments").
 		Columns(columns...).
 		Values(values...).
 		Suffix("RETURNING id").
@@ -266,14 +253,36 @@ func (r *Repository) CreateComment(ctx context.Context, comment *model.Comment) 
 		Scan(&id)
 
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
 	return id, nil
 }
 
+func (r *Repository) GetCommentById(ctx context.Context, commentId int32) (*model.Comment, error) {
+	var comment model.Comment
+
+	err := sq.Select("id", "post_id", "user_id", "parent_comment_id", "content", "created_at").
+		From("comments").
+		Where(sq.Eq{"id": commentId}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		QueryRow().
+		Scan(comment.ID, comment.PostID, comment.Author, comment.ParentID, comment.Content, comment.CreatedAt)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrWrongCommentId
+		}
+
+		return nil, err
+	}
+
+	return &comment, nil
+}
+
 func buildCommentsTree(comments []*model.Comment) []*model.Comment {
-	commentMap := make(map[string]*model.Comment)
+	commentMap := make(map[int32]*model.Comment)
 	parentComments := make([]*model.Comment, 0)
 
 	for _, comment := range comments {
@@ -281,7 +290,7 @@ func buildCommentsTree(comments []*model.Comment) []*model.Comment {
 	}
 
 	for _, comment := range comments {
-		if pointer.Deref(comment.ParentID, "") == "" {
+		if pointer.Deref(comment.ParentID, 0) == 0 {
 			parentComments = append(parentComments, comment)
 		} else {
 			parent := commentMap[*comment.ParentID]

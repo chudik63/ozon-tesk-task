@@ -4,15 +4,17 @@ import (
 	"context"
 	"ozon-tesk-task/internal/repository"
 	"ozon-tesk-task/internal/transport/graph/model"
+	"ozon-tesk-task/pkg/pointer"
 )
 
 type Repository interface {
 	ListPosts(ctx context.Context, limit, offset int32) ([]*model.Post, error)
 	ListPostsWithComments(ctx context.Context, limit, offset int32) ([]*model.Post, error)
-	CreatePost(ctx context.Context, post *model.Post) (string, error)
-	GetPostById(ctx context.Context, id string) (*model.Post, error)
-	GetPostByIdWithComments(ctx context.Context, id string) (*model.Post, error)
-	CreateComment(ctx context.Context, comment *model.Comment) (string, error)
+	CreatePost(ctx context.Context, post *model.Post) (int32, error)
+	GetPostById(ctx context.Context, id int32) (*model.Post, error)
+	GetPostByIdWithComments(ctx context.Context, id int32) (*model.Post, error)
+	CreateComment(ctx context.Context, comment *model.Comment) (int32, error)
+	GetCommentById(ctx context.Context, commentId int32) (*model.Comment, error)
 }
 
 type Service struct {
@@ -42,7 +44,7 @@ func (s *Service) CreatePost(ctx context.Context, post *model.Post) (*model.Post
 	return post, nil
 }
 
-func (s *Service) GetPostById(ctx context.Context, id string, withComments bool) (*model.Post, error) {
+func (s *Service) GetPostById(ctx context.Context, id int32, withComments bool) (*model.Post, error) {
 	if withComments {
 		return s.repo.GetPostByIdWithComments(ctx, id)
 	}
@@ -57,6 +59,19 @@ func (s *Service) CreateComment(ctx context.Context, comment *model.Comment) (*m
 	}
 	if !post.AllowComments {
 		return nil, repository.ErrCommentsNotAllowed
+	}
+
+	parentId := pointer.Deref(comment.ParentID, 0)
+	if parentId != 0 {
+		comm, err := s.repo.GetCommentById(ctx, parentId)
+
+		if err != nil {
+			return nil, err
+		}
+
+		if comm.PostID != postId {
+			return nil, repository.ErrMatchCommentWithPost
+		}
 	}
 
 	id, err := s.repo.CreateComment(ctx, comment)

@@ -22,6 +22,7 @@ import (
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error) {
 	if input.Title == "" || input.Content == "" {
+		r.logs.Warn(ctx, "invalid input arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid argument",
 			Extensions: map[string]interface{}{
@@ -30,12 +31,24 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 		}
 	}
 
+	if len(input.Content) > 2000 {
+		r.logs.Warn(ctx, "input content is too long")
+		return nil, &gqlerror.Error{
+			Message: "content is too long",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	r.logs.Debug(ctx, "Creating post", zap.Any("input", input))
+
 	post, err := r.service.CreatePost(ctx, &model.Post{
 		Title:         input.Title,
 		Content:       input.Content,
 		AllowComments: input.AllowComments,
 		CreatedAt:     time.Now().Format(time.DateTime),
-		Author:        "0",
+		Author:        0,
 	})
 	if err != nil {
 		r.logs.Error(ctx, "failed to create post", zap.String("err", err.Error()))
@@ -52,7 +65,18 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.CreateCommentInput) (*model.Comment, error) {
-	if input.Content == "" || input.PostID == "" || input.PostID == "0" {
+	if len(input.Content) > 2000 {
+		r.logs.Warn(ctx, "comment is too long")
+		return nil, &gqlerror.Error{
+			Message: "comment is too long",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	if input.PostID <= 0 || pointer.Deref(input.ParentID, 0) < 0 {
+		r.logs.Warn(ctx, "invalid input arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid argument",
 			Extensions: map[string]interface{}{
@@ -61,12 +85,14 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 		}
 	}
 
+	r.logs.Debug(ctx, "Creating comment", zap.Any("input", input))
+
 	comment, err := r.service.CreateComment(ctx, &model.Comment{
 		PostID:    input.PostID,
 		ParentID:  input.ParentID,
 		Content:   input.Content,
 		CreatedAt: time.Now().Format(time.DateTime),
-		Author:    "0",
+		Author:    0,
 	})
 
 	if err != nil {
@@ -93,7 +119,7 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 }
 
 // Posts is the resolver for the posts field.
-func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) ([]*model.Post, error) {
+func (r *queryResolver) Posts(ctx context.Context, page *int32, limit *int32) ([]*model.Post, error) {
 	var (
 		withComments bool
 	)
@@ -107,9 +133,24 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) 
 		}
 	}
 
-	r.logs.Info(ctx, "Loading posts", zap.Bool("with comments", withComments))
+	lim := pointer.Deref(limit, 10)
+	p := pointer.Deref(page, 1)
 
-	posts, err := r.service.ListPosts(ctx, pointer.Deref(limit, 10), pointer.Deref(offset, 0), withComments)
+	if lim <= 0 || p <= 1 {
+		r.logs.Warn(ctx, "invalid pagination arguments")
+		return nil, &gqlerror.Error{
+			Message: "invalid pagination argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	offset := lim * (p - 1)
+
+	r.logs.Debug(ctx, "Loading posts", zap.Bool("with comments", withComments), zap.Int32("page", p))
+
+	posts, err := r.service.ListPosts(ctx, lim, offset, withComments)
 	if err != nil {
 		if errors.Is(err, repository.ErrNotFound) {
 			r.logs.Error(ctx, "can`t list posts", zap.String("err", err.Error()))
@@ -134,7 +175,16 @@ func (r *queryResolver) Posts(ctx context.Context, limit *int32, offset *int32) 
 }
 
 // Post is the resolver for the post field.
-func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
+func (r *queryResolver) Post(ctx context.Context, id int32) (*model.Post, error) {
+	if id <= 0 {
+		return nil, &gqlerror.Error{
+			Message: "invalid argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
 	var (
 		withComments bool
 	)
@@ -148,12 +198,12 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error
 		}
 	}
 
-	r.logs.Info(ctx, "Loading post", zap.String("id", id), zap.Bool("with comments", withComments))
+	r.logs.Debug(ctx, "Loading post", zap.Int32("id", id), zap.Bool("with comments", withComments))
 
 	post, err := r.service.GetPostById(ctx, id, withComments)
 	if err != nil {
 		if errors.Is(err, repository.ErrWrongPostId) {
-			r.logs.Error(ctx, "post with such id does not exits", zap.String("err", err.Error()))
+			r.logs.Error(ctx, "can`t get post", zap.String("err", err.Error()))
 			return nil, &gqlerror.Error{
 				Message: err.Error(),
 				Extensions: map[string]interface{}{
@@ -175,7 +225,7 @@ func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error
 }
 
 // CommentAdded is the resolver for the commentAdded field.
-func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID string) (<-chan *model.Comment, error) {
+func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID int32) (<-chan *model.Comment, error) {
 	panic(fmt.Errorf("not implemented: CommentAdded - commentAdded"))
 }
 

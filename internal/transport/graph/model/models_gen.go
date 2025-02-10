@@ -3,10 +3,10 @@
 package model
 
 type Comment struct {
-	ID        string     `json:"id"`
-	PostID    string     `json:"postId"`
-	ParentID  *string    `json:"parentId,omitempty"`
-	Author    string     `json:"author"`
+	ID        int32      `json:"id"`
+	PostID    int32      `json:"postId"`
+	ParentID  *int32     `json:"parentId,omitempty"`
+	Author    int32      `json:"author"`
 	Content   string     `json:"content"`
 	CreatedAt string     `json:"createdAt"`
 	UpdatedAt string     `json:"updatedAt"`
@@ -14,9 +14,9 @@ type Comment struct {
 }
 
 type CreateCommentInput struct {
-	PostID   string  `json:"postId"`
-	ParentID *string `json:"parentId,omitempty"`
-	Content  string  `json:"content"`
+	PostID   int32  `json:"postId"`
+	ParentID *int32 `json:"parentId,omitempty"`
+	Content  string `json:"content"`
 }
 
 type CreatePostInput struct {
@@ -29,10 +29,10 @@ type Mutation struct {
 }
 
 type Post struct {
-	ID            string     `json:"id"`
+	ID            int32      `json:"id"`
 	Title         string     `json:"title"`
 	Content       string     `json:"content"`
-	Author        string     `json:"author"`
+	Author        int32      `json:"author"`
 	AllowComments bool       `json:"allowComments"`
 	CreatedAt     string     `json:"createdAt"`
 	UpdatedAt     string     `json:"updatedAt"`
