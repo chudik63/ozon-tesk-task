@@ -15,13 +15,8 @@ type PostgresConfig struct {
 	DbName   string `env:"POSTGRES_DB"`
 }
 
-type SQLiteConfig struct {
-	DatabasePath string `env:"DATABASE_PATH"`
-}
-
 type Config struct {
 	PostgresConfig
-	SQLiteConfig
 	MigrationsPath string `env:"MIGRATIONS_PATH"`
 	StorageType    string `env:"STORAGE_TYPE"`
 
