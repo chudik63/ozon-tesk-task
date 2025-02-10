@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS comments (
   content VARCHAR(2000) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP,
-  FOREIGN KEY (post_id) REFERENCES posts(id),
+  FOREIGN KEY (post_id) REFERENCES posts(id)
   -- FOREIGN KEY (user_id) REFERENCES users(id),
 );
 
