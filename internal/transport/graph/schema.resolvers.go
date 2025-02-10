@@ -136,7 +136,7 @@ func (r *queryResolver) Posts(ctx context.Context, page *int32, limit *int32) ([
 	lim := pointer.Deref(limit, 10)
 	p := pointer.Deref(page, 1)
 
-	if lim <= 0 || p <= 1 {
+	if lim <= 0 || p < 1 {
 		r.logs.Warn(ctx, "invalid pagination arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid pagination argument",
