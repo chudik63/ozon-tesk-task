@@ -74,7 +74,7 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 		}
 	}
 
-	if input.PostID <= 0 || pointer.Deref(input.ParentID, 0) < 0 {
+	if input.Content == "" || input.PostID <= 0 || pointer.Deref(input.ParentID, 0) < 0 {
 		r.logs.Warn(ctx, "invalid input arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid argument",
@@ -241,6 +241,43 @@ func (r *queryResolver) Post(ctx context.Context, id int32) (*model.Post, error)
 	}
 
 	return post, nil
+}
+
+// DeletePost is the resolver for the deletePost field.
+func (r *queryResolver) DeletePost(ctx context.Context, postID int32) (int32, error) {
+	if postID <= 0 {
+		return 0, &gqlerror.Error{
+			Message: "invalid argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	r.logs.Debug(ctx, "Deleting post", zap.Int32("id", postID))
+
+	err := r.service.DeletePost(ctx, postID)
+	if err != nil {
+		if errors.Is(err, repository.ErrWrongPostId) {
+			r.logs.Error(ctx, "can`t get post", zap.String("err", err.Error()))
+			return 0, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusNotFound,
+				},
+			}
+		}
+
+		r.logs.Error(ctx, "failed to delete post", zap.String("err", err.Error()))
+		return 0, &gqlerror.Error{
+			Message: "failed to delete post",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return postID, nil
 }
 
 // CommentAdded is the resolver for the commentAdded field.

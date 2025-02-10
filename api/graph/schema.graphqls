@@ -24,6 +24,8 @@ type Query {
   posts(page: Int = 1, limit: Int = 10): [Post]
 
   post(id: Int!): Post
+
+  deletePost(postId: Int!): Int!
 }
 
 type Mutation {

@@ -6,11 +6,14 @@ import (
 	"ozon-tesk-task/pkg/logger"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.25.1
+
 type Service interface {
 	ListPosts(ctx context.Context, limit, offset int32, withComments bool) ([]*model.Post, error)
 	CreatePost(ctx context.Context, post *model.Post) (*model.Post, error)
 	GetPostById(ctx context.Context, id int32, withComments bool) (*model.Post, error)
 	CreateComment(ctx context.Context, comment *model.Comment) (*model.Comment, error)
+	DeletePost(ctx context.Context, postId int32) error
 }
 
 type PubSub interface {

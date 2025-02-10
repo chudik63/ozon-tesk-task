@@ -15,6 +15,7 @@ type Repository interface {
 	GetPostByIdWithComments(ctx context.Context, id int32) (*model.Post, error)
 	CreateComment(ctx context.Context, comment *model.Comment) (int32, error)
 	GetCommentById(ctx context.Context, commentId int32) (*model.Comment, error)
+	DeletePost(ctx context.Context, postId int32) error
 }
 
 type Service struct {
@@ -42,6 +43,10 @@ func (s *Service) CreatePost(ctx context.Context, post *model.Post) (*model.Post
 	post.ID = id
 
 	return post, nil
+}
+
+func (s *Service) DeletePost(ctx context.Context, postId int32) error {
+	return s.repo.DeletePost(ctx, postId)
 }
 
 func (s *Service) GetPostById(ctx context.Context, id int32, withComments bool) (*model.Post, error) {

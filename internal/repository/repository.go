@@ -147,6 +147,50 @@ func (r *Repository) CreatePost(ctx context.Context, post *model.Post) (int32, e
 	return id, nil
 }
 
+func (r *Repository) DeletePost(ctx context.Context, postId int32) error {
+	tx, err := r.db.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = sq.Delete("comments").
+		Where(sq.Eq{"post_id": postId}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(tx).
+		Exec()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	res, err := sq.Delete("posts").
+		Where(sq.Eq{"id": postId}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(tx).
+		Exec()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	if rowsAffected == 0 {
+		tx.Rollback()
+		return ErrWrongPostId
+	}
+
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *Repository) GetPostById(ctx context.Context, id int32) (*model.Post, error) {
 	var post model.Post
 
