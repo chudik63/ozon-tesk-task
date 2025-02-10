@@ -29,8 +29,8 @@ func NewDatabase(ctx context.Context, cfg *config.Config) (*Database, error) {
 		l.Debug(ctx, "Connecting to postgres database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
 	case "memory":
 		db = New(cfg, "sqlite")
-		dsn = fmt.Sprintf("file:%s?mode=memory&cache=shared", cfg.DatabasePath)
-		dbURL = fmt.Sprintf("sqlite://%s", cfg.DatabasePath)
+		dsn = "file::memory:?cache=shared"
+		dbURL = "sqlite://file::memory:?cache=shared"
 
 		l.Debug(ctx, "Connecting to sqlite database", zap.String("dsn", dsn), zap.String("dbURL", dbURL))
 	default:
@@ -49,7 +49,7 @@ func NewDatabase(ctx context.Context, cfg *config.Config) (*Database, error) {
 		return nil, err
 	}
 
-	l.Info(ctx, "Migration complete succesfully")
+	l.Info(ctx, "Migration completed succesfully")
 
 	return db, nil
 }

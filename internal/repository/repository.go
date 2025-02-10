@@ -268,7 +268,7 @@ func (r *Repository) GetCommentById(ctx context.Context, commentId int32) (*mode
 		PlaceholderFormat(sq.Dollar).
 		RunWith(r.db.DB).
 		QueryRow().
-		Scan(comment.ID, comment.PostID, comment.Author, comment.ParentID, comment.Content, comment.CreatedAt)
+		Scan(&comment.ID, &comment.PostID, &comment.Author, &comment.ParentID, &comment.Content, &comment.CreatedAt)
 
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {

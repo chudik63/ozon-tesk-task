@@ -105,6 +105,24 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 				},
 			}
 		}
+		if errors.Is(err, repository.ErrWrongCommentId) {
+			r.logs.Error(ctx, "can`t create comment", zap.String("err", err.Error()))
+			return nil, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusBadRequest,
+				},
+			}
+		}
+		if errors.Is(err, repository.ErrMatchCommentWithPost) {
+			r.logs.Error(ctx, "can`t create comment", zap.String("err", err.Error()))
+			return nil, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusBadRequest,
+				},
+			}
+		}
 
 		r.logs.Error(ctx, "failed to create comment", zap.String("err", err.Error()))
 		return nil, &gqlerror.Error{
