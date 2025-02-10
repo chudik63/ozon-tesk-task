@@ -16,6 +16,7 @@ const (
 type Logger interface {
 	Debug(ctx context.Context, msg string, fields ...zap.Field)
 	Info(ctx context.Context, msg string, fields ...zap.Field)
+	Warn(ctx context.Context, msg string, fields ...zap.Field)
 	Error(ctx context.Context, msg string, fields ...zap.Field)
 	Fatal(ctx context.Context, msg string, fields ...zap.Field)
 }
@@ -41,6 +42,15 @@ func (l logger) Info(ctx context.Context, msg string, fields ...zap.Field) {
 		fields = append(fields, zap.String(RequestID, ctx.Value(RequestID).(string)))
 	}
 	l.logger.Info(msg, fields...)
+}
+
+func (l logger) Warn(ctx context.Context, msg string, fields ...zap.Field) {
+	fields = append(fields, zap.String(ServiceName, l.serviceName))
+
+	if ctx.Value(RequestID) != nil {
+		fields = append(fields, zap.String(RequestID, ctx.Value(RequestID).(string)))
+	}
+	l.logger.Warn(msg, fields...)
 }
 
 func (l logger) Error(ctx context.Context, msg string, fields ...zap.Field) {
