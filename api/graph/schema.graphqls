@@ -1,29 +1,29 @@
 type Post {
-  id: ID!
+  id: Int!
   title: String!
   content: String!
-  author: ID!
+  author: Int!
   allowComments: Boolean!
   createdAt: String!
   updatedAt: String!
-  comments(limit: Int, offset: Int): [Comment]
+  comments(page: Int = 1, limit: Int = 10): [Comment]
 }
 
 type Comment {
-  id: ID!
-  postId: ID!
-  parentId: ID
-  author: ID!
+  id: Int!
+  postId: Int!
+  parentId: Int
+  author: Int!
   content: String!
   createdAt: String!
   updatedAt: String!
-  replies(limit: Int, offset: Int): [Comment]
+  replies: [Comment]
 }
 
 type Query {
-  posts(limit: Int = 10, offset: Int = 0): [Post]
+  posts(page: Int = 1, limit: Int = 10): [Post]
 
-  post(id: ID!): Post
+  post(id: Int!): Post
 }
 
 type Mutation {
@@ -33,7 +33,7 @@ type Mutation {
 }
 
 type Subscription {
-  commentAdded(postId: ID!): Comment!
+  commentAdded(postId: Int!): Comment!
 }
 
 input CreatePostInput {
@@ -43,7 +43,7 @@ input CreatePostInput {
 }
 
 input CreateCommentInput {
-  postId: ID!
-  parentId: ID
+  postId: Int!
+  parentId: Int
   content: String!
 }
