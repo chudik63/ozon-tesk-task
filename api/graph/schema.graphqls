@@ -28,6 +28,8 @@ type Query {
   comments(postId: Int!, page: Int = 1, limit: Int = 10): [Comment]
 
   deletePost(postId: Int!): Int!
+
+  deleteComment(commentId: Int!): Int!
 }
 
 type Mutation {

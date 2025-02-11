@@ -70,6 +70,24 @@ func (_m *Repository) CreatePost(ctx context.Context, post *model.Post) (int32, 
 	return r0, r1
 }
 
+// DeleteComment provides a mock function with given fields: ctx, commentId
+func (_m *Repository) DeleteComment(ctx context.Context, commentId int32) error {
+	ret := _m.Called(ctx, commentId)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteComment")
+	}
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(context.Context, int32) error); ok {
+		r0 = rf(ctx, commentId)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
 // DeletePost provides a mock function with given fields: ctx, postId
 func (_m *Repository) DeletePost(ctx context.Context, postId int32) error {
 	ret := _m.Called(ctx, postId)

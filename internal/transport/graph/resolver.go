@@ -14,6 +14,7 @@ type Service interface {
 	GetComments(ctx context.Context, postId int32, limit, offset int32) ([]*model.Comment, error)
 	CreateComment(ctx context.Context, comment *model.Comment) (*model.Comment, error)
 	DeletePost(ctx context.Context, postId int32) error
+	DeleteComment(ctx context.Context, commentId int32) error
 }
 
 //go:generate go run github.com/vektra/mockery/v2@latest --name PubSub

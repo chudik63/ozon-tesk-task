@@ -390,6 +390,28 @@ func (r *Repository) GetCommentsByPostId(ctx context.Context, postId int32, limi
 
 }
 
+func (r *Repository) DeleteComment(ctx context.Context, commentId int32) error {
+	res, err := sq.Delete("comments").
+		Where(sq.Eq{"id": commentId}).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		Exec()
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return ErrWrongCommentId
+	}
+
+	return nil
+}
+
 func buildCommentsTree(comments []*model.Comment) []*model.Comment {
 	commentMap := make(map[int32]*model.Comment)
 	parentComments := make([]*model.Comment, 0)

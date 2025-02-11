@@ -254,7 +254,6 @@ func (r *queryResolver) Post(ctx context.Context, id int32) (*model.Post, error)
 
 // Comments is the resolver for the comments field.
 func (r *queryResolver) Comments(ctx context.Context, postID int32, page *int32, limit *int32) ([]*model.Comment, error) {
-
 	lim := pointer.Deref(limit, 10)
 	p := pointer.Deref(page, 1)
 
@@ -283,7 +282,7 @@ func (r *queryResolver) Comments(ctx context.Context, postID int32, page *int32,
 			}
 		}
 
-		r.logs.Error(ctx, "failed to get post", zap.String("err", err.Error()))
+		r.logs.Error(ctx, "failed to list comments", zap.String("err", err.Error()))
 		return nil, &gqlerror.Error{
 			Message: "failed to get post",
 			Extensions: map[string]interface{}{
@@ -330,6 +329,43 @@ func (r *queryResolver) DeletePost(ctx context.Context, postID int32) (int32, er
 	}
 
 	return postID, nil
+}
+
+// DeleteComment is the resolver for the deleteComment field.
+func (r *queryResolver) DeleteComment(ctx context.Context, commentID int32) (int32, error) {
+	if commentID <= 0 {
+		return 0, &gqlerror.Error{
+			Message: "invalid argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	r.logs.Debug(ctx, "Deleting comment", zap.Int32("id", commentID))
+
+	err := r.service.DeleteComment(ctx, commentID)
+	if err != nil {
+		if errors.Is(err, repository.ErrWrongCommentId) {
+			r.logs.Error(ctx, "can`t get comment", zap.String("err", err.Error()))
+			return 0, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusNotFound,
+				},
+			}
+		}
+
+		r.logs.Error(ctx, "failed to delete comment", zap.String("err", err.Error()))
+		return 0, &gqlerror.Error{
+			Message: "failed to delete post",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return commentID, nil
 }
 
 // CommentAdded is the resolver for the commentAdded field.
