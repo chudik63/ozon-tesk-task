@@ -1,4 +1,4 @@
-# Tesk Task for OZON Bank
+# Tesk Task for Ozon Bank
 ## Installation
 ```
 git clone https://github.com/chudik63/ozon-tesk-task.git
