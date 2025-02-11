@@ -6,9 +6,17 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
-func GetPreloads(ctx context.Context) []string {
+func GetPreloads(ctx context.Context) (preloads []string) {
+	defer func() {
+		if r := recover(); r != nil {
+			preloads = []string{}
+		}
+	}()
+
+	opCtx := graphql.GetOperationContext(ctx)
+
 	return GetNestedPreloads(
-		graphql.GetOperationContext(ctx),
+		opCtx,
 		graphql.CollectFieldsCtx(ctx, nil),
 		"",
 	)
