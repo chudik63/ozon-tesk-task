@@ -21,7 +21,7 @@ import (
 // CreatePost is the resolver for the createPost field.
 func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePostInput) (*model.Post, error) {
 	if input.Title == "" || input.Content == "" {
-		r.logs.Warn(ctx, "invalid input arguments")
+		r.logs.Info(ctx, "invalid input arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid argument",
 			Extensions: map[string]interface{}{
@@ -30,8 +30,18 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 		}
 	}
 
+	if len(input.Title) > 200 {
+		r.logs.Info(ctx, "input title is too long")
+		return nil, &gqlerror.Error{
+			Message: "title is too long",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
 	if len(input.Content) > 2000 {
-		r.logs.Warn(ctx, "input content is too long")
+		r.logs.Info(ctx, "input content is too long")
 		return nil, &gqlerror.Error{
 			Message: "content is too long",
 			Extensions: map[string]interface{}{
@@ -65,7 +75,7 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, input model.CreateCommentInput) (*model.Comment, error) {
 	if len(input.Content) > 2000 {
-		r.logs.Warn(ctx, "comment is too long")
+		r.logs.Info(ctx, "comment is too long")
 		return nil, &gqlerror.Error{
 			Message: "comment is too long",
 			Extensions: map[string]interface{}{
@@ -75,7 +85,7 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 	}
 
 	if input.Content == "" || input.PostID <= 0 || pointer.Deref(input.ParentID, 0) < 0 {
-		r.logs.Warn(ctx, "invalid input arguments")
+		r.logs.Info(ctx, "invalid input arguments")
 		return nil, &gqlerror.Error{
 			Message: "invalid argument",
 			Extensions: map[string]interface{}{
@@ -155,14 +165,13 @@ func (r *queryResolver) Posts(ctx context.Context, page *int32, limit *int32) ([
 	lim := pointer.Deref(limit, 10)
 	p := pointer.Deref(page, 1)
 
-	if lim <= 0 || p < 1 {
-		r.logs.Warn(ctx, "invalid pagination arguments")
-		return nil, &gqlerror.Error{
-			Message: "invalid pagination argument",
-			Extensions: map[string]interface{}{
-				"code": http.StatusBadRequest,
-			},
-		}
+	if lim <= 0 {
+		r.logs.Warn(ctx, "invalid pagination argument", zap.Int32("limit", lim))
+		lim = 10
+	}
+	if p < 1 {
+		r.logs.Warn(ctx, "invalid pagination argument", zap.Int32("page", p))
+		p = 1
 	}
 
 	offset := lim * (p - 1)
@@ -282,6 +291,22 @@ func (r *queryResolver) DeletePost(ctx context.Context, postID int32) (int32, er
 
 // CommentAdded is the resolver for the commentAdded field.
 func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID int32) (<-chan *model.Comment, error) {
+	if postID <= 0 {
+		return nil, &gqlerror.Error{
+			Message: "invalid argument",
+			Extensions: map[string]interface{}{
+				"code": http.StatusBadRequest,
+			},
+		}
+	}
+
+	if !r.pubsub.Check(postID) {
+		_, err := r.service.GetPostById(ctx, postID, false)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	r.logs.Debug(ctx, "Creating new subscription", zap.Int32("postId", postID))
 
 	ch := r.pubsub.Subscribe(ctx, postID)
