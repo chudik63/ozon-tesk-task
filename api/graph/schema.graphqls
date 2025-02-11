@@ -25,6 +25,8 @@ type Query {
 
   post(id: Int!): Post
 
+  comments(postId: Int!, page: Int = 1, limit: Int = 10): [Comment]
+
   deletePost(postId: Int!): Int!
 }
 

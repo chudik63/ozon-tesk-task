@@ -16,6 +16,7 @@ type Repository interface {
 	GetPostByIdWithComments(ctx context.Context, id int32) (*model.Post, error)
 	CreateComment(ctx context.Context, comment *model.Comment) (int32, error)
 	GetCommentById(ctx context.Context, commentId int32) (*model.Comment, error)
+	GetCommentsByPostId(ctx context.Context, postId int32, limit, offset int32) ([]*model.Comment, error)
 	DeletePost(ctx context.Context, postId int32) error
 }
 
@@ -88,4 +89,16 @@ func (s *Service) CreateComment(ctx context.Context, comment *model.Comment) (*m
 	comment.ID = id
 
 	return comment, nil
+}
+
+func (s *Service) GetComments(ctx context.Context, postId int32, limit, offset int32) ([]*model.Comment, error) {
+	post, err := s.repo.GetPostById(ctx, postId)
+	if err != nil {
+		return nil, err
+	}
+	if !post.AllowComments {
+		return nil, repository.ErrCommentsNotAllowed
+	}
+
+	return s.repo.GetCommentsByPostId(ctx, postId, limit, offset)
 }

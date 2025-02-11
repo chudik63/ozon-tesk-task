@@ -325,6 +325,71 @@ func (r *Repository) GetCommentById(ctx context.Context, commentId int32) (*mode
 	return &comment, nil
 }
 
+func (r *Repository) GetCommentsByPostId(ctx context.Context, postId int32, limit, offset int32) ([]*model.Comment, error) {
+	rows, err := sq.Select("id", "post_id", "user_id", "parent_comment_id", "content", "created_at").
+		From("comments").
+		Where(sq.Eq{"post_id": postId}).
+		OrderBy("created_at").
+		Limit(uint64(limit)).
+		Offset(uint64(offset)).
+		PlaceholderFormat(sq.Dollar).
+		RunWith(r.db.DB).
+		Query()
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	comments := make([]*model.Comment, 0)
+
+	if !rows.Next() {
+		return nil, ErrNotFound
+	}
+
+	for {
+		var (
+			comment   model.Comment
+			id        sql.NullInt32
+			postId    sql.NullInt32
+			author    sql.NullInt32
+			parentId  sql.NullInt32
+			content   sql.NullString
+			createdAt sql.NullString
+		)
+
+		if err = rows.Scan(&id, &postId, &author, &parentId, &content, &createdAt); err != nil {
+			return nil, err
+		}
+
+		if id.Valid {
+			comment = model.Comment{
+				ID:        id.Int32,
+				PostID:    postId.Int32,
+				Author:    author.Int32,
+				ParentID:  &parentId.Int32,
+				Content:   content.String,
+				CreatedAt: createdAt.String,
+			}
+
+			comments = append(comments, &comment)
+		}
+
+		if !rows.Next() {
+			break
+		}
+	}
+
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	comments = buildCommentsTree(comments)
+
+	return comments, nil
+
+}
+
 func buildCommentsTree(comments []*model.Comment) []*model.Comment {
 	commentMap := make(map[int32]*model.Comment)
 	parentComments := make([]*model.Comment, 0)

@@ -252,6 +252,49 @@ func (r *queryResolver) Post(ctx context.Context, id int32) (*model.Post, error)
 	return post, nil
 }
 
+// Comments is the resolver for the comments field.
+func (r *queryResolver) Comments(ctx context.Context, postID int32, page *int32, limit *int32) ([]*model.Comment, error) {
+
+	lim := pointer.Deref(limit, 10)
+	p := pointer.Deref(page, 1)
+
+	if lim <= 0 {
+		r.logs.Warn(ctx, "invalid pagination argument", zap.Int32("limit", lim))
+		lim = 10
+	}
+	if p < 1 {
+		r.logs.Warn(ctx, "invalid pagination argument", zap.Int32("page", p))
+		p = 1
+	}
+
+	offset := lim * (p - 1)
+
+	r.logs.Debug(ctx, "Loading comments", zap.Int32("post", postID), zap.Int32("page", p))
+
+	comments, err := r.service.GetComments(ctx, postID, lim, offset)
+	if err != nil {
+		if errors.Is(err, repository.ErrWrongPostId) {
+			r.logs.Error(ctx, "can`t get post", zap.String("err", err.Error()))
+			return nil, &gqlerror.Error{
+				Message: err.Error(),
+				Extensions: map[string]interface{}{
+					"code": http.StatusNotFound,
+				},
+			}
+		}
+
+		r.logs.Error(ctx, "failed to get post", zap.String("err", err.Error()))
+		return nil, &gqlerror.Error{
+			Message: "failed to get post",
+			Extensions: map[string]interface{}{
+				"code": http.StatusInternalServerError,
+			},
+		}
+	}
+
+	return comments, nil
+}
+
 // DeletePost is the resolver for the deletePost field.
 func (r *queryResolver) DeletePost(ctx context.Context, postID int32) (int32, error) {
 	if postID <= 0 {

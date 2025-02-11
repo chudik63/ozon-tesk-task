@@ -118,6 +118,36 @@ func (_m *Repository) GetCommentById(ctx context.Context, commentId int32) (*mod
 	return r0, r1
 }
 
+// GetCommentsByPostId provides a mock function with given fields: ctx, postId, limit, offset
+func (_m *Repository) GetCommentsByPostId(ctx context.Context, postId int32, limit int32, offset int32) ([]*model.Comment, error) {
+	ret := _m.Called(ctx, postId, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentsByPostId")
+	}
+
+	var r0 []*model.Comment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int32, int32, int32) ([]*model.Comment, error)); ok {
+		return rf(ctx, postId, limit, offset)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int32, int32, int32) []*model.Comment); ok {
+		r0 = rf(ctx, postId, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*model.Comment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int32, int32, int32) error); ok {
+		r1 = rf(ctx, postId, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPostById provides a mock function with given fields: ctx, id
 func (_m *Repository) GetPostById(ctx context.Context, id int32) (*model.Post, error) {
 	ret := _m.Called(ctx, id)

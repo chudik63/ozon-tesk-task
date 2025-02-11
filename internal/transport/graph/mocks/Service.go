@@ -93,6 +93,36 @@ func (_m *Service) DeletePost(ctx context.Context, postId int32) error {
 	return r0
 }
 
+// GetComments provides a mock function with given fields: ctx, postId, limit, offset
+func (_m *Service) GetComments(ctx context.Context, postId int32, limit int32, offset int32) ([]*model.Comment, error) {
+	ret := _m.Called(ctx, postId, limit, offset)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetComments")
+	}
+
+	var r0 []*model.Comment
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, int32, int32, int32) ([]*model.Comment, error)); ok {
+		return rf(ctx, postId, limit, offset)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, int32, int32, int32) []*model.Comment); ok {
+		r0 = rf(ctx, postId, limit, offset)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*model.Comment)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, int32, int32, int32) error); ok {
+		r1 = rf(ctx, postId, limit, offset)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetPostById provides a mock function with given fields: ctx, id, withComments
 func (_m *Service) GetPostById(ctx context.Context, id int32, withComments bool) (*model.Post, error) {
 	ret := _m.Called(ctx, id, withComments)

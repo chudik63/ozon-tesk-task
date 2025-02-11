@@ -11,6 +11,7 @@ type Service interface {
 	ListPosts(ctx context.Context, limit, offset int32, withComments bool) ([]*model.Post, error)
 	CreatePost(ctx context.Context, post *model.Post) (*model.Post, error)
 	GetPostById(ctx context.Context, id int32, withComments bool) (*model.Post, error)
+	GetComments(ctx context.Context, postId int32, limit, offset int32) ([]*model.Comment, error)
 	CreateComment(ctx context.Context, comment *model.Comment) (*model.Comment, error)
 	DeletePost(ctx context.Context, postId int32) error
 }
