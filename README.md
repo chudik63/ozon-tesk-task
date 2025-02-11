@@ -113,7 +113,7 @@ mutation ReplyToComment($ReplyToCommentInput: CreateCommentInput!) {
 }
 ```
 Variables:
-```graphql
+```JSON
 {
   "CreatePostInput": {
     "title": "first post",
