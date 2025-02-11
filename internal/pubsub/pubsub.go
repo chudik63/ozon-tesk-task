@@ -41,6 +41,11 @@ func (p *PubSub) Publish(ctx context.Context, comment *model.Comment) {
 	}()
 }
 
+func (p *PubSub) Check(postId int32) bool {
+	_, exists := p.commentSubscriptions[postId]
+	return exists
+}
+
 func (p *PubSub) Unsubscribe(ctx context.Context, postId int32, ch chan *model.Comment) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
