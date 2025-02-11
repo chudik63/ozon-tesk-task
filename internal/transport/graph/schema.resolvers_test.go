@@ -417,6 +417,28 @@ func Test_queryResolver_Posts(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "nil pagination values",
+			args: args{
+				ctx:   context.Background(),
+				page:  nil,
+				limit: nil,
+			},
+			serviceMock: func(s *mocks.Service, returnPosts []*model.Post) {
+				s.On("ListPosts", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(returnPosts, nil)
+			},
+			want: []*model.Post{
+				{
+					ID:    1,
+					Title: "empty",
+				},
+				{
+					ID:    2,
+					Title: "empty",
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "Invalid page value",
 			args: args{
 				ctx:   context.Background(),
