@@ -6,7 +6,7 @@ type Post {
   allowComments: Boolean!
   createdAt: String!
   updatedAt: String!
-  comments(page: Int = 1, limit: Int = 10): [Comment]
+  comments: [Comment]
 }
 
 type Comment {
@@ -41,7 +41,7 @@ type Subscription {
 input CreatePostInput {
   title: String!
   content: String!
-  allowComments: Boolean! = false
+  allowComments: Boolean!
 }
 
 input CreateCommentInput {
