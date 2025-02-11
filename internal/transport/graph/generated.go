@@ -67,7 +67,7 @@ type ComplexityRoot struct {
 	Post struct {
 		AllowComments func(childComplexity int) int
 		Author        func(childComplexity int) int
-		Comments      func(childComplexity int, page *int32, limit *int32) int
+		Comments      func(childComplexity int) int
 		Content       func(childComplexity int) int
 		CreatedAt     func(childComplexity int) int
 		ID            func(childComplexity int) int
@@ -217,12 +217,7 @@ func (e *executableSchema) Complexity(typeName, field string, childComplexity in
 			break
 		}
 
-		args, err := ec.field_Post_comments_args(context.TODO(), rawArgs)
-		if err != nil {
-			return 0, false
-		}
-
-		return e.complexity.Post.Comments(childComplexity, args["page"].(*int32), args["limit"].(*int32)), true
+		return e.complexity.Post.Comments(childComplexity), true
 
 	case "Post.content":
 		if e.complexity.Post.Content == nil {
@@ -439,7 +434,7 @@ var sources = []*ast.Source{
   allowComments: Boolean!
   createdAt: String!
   updatedAt: String!
-  comments(page: Int = 1, limit: Int = 10): [Comment]
+  comments: [Comment]
 }
 
 type Comment {
@@ -474,7 +469,7 @@ type Subscription {
 input CreatePostInput {
   title: String!
   content: String!
-  allowComments: Boolean! = false
+  allowComments: Boolean!
 }
 
 input CreateCommentInput {
@@ -532,47 +527,6 @@ func (ec *executionContext) field_Mutation_createPost_argsInput(
 	}
 
 	var zeroVal model.CreatePostInput
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Post_comments_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
-	var err error
-	args := map[string]any{}
-	arg0, err := ec.field_Post_comments_argsPage(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["page"] = arg0
-	arg1, err := ec.field_Post_comments_argsLimit(ctx, rawArgs)
-	if err != nil {
-		return nil, err
-	}
-	args["limit"] = arg1
-	return args, nil
-}
-func (ec *executionContext) field_Post_comments_argsPage(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("page"))
-	if tmp, ok := rawArgs["page"]; ok {
-		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
-	}
-
-	var zeroVal *int32
-	return zeroVal, nil
-}
-
-func (ec *executionContext) field_Post_comments_argsLimit(
-	ctx context.Context,
-	rawArgs map[string]any,
-) (*int32, error) {
-	ctx = graphql.WithPathContext(ctx, graphql.NewPathWithField("limit"))
-	if tmp, ok := rawArgs["limit"]; ok {
-		return ec.unmarshalOInt2ᚖint32(ctx, tmp)
-	}
-
-	var zeroVal *int32
 	return zeroVal, nil
 }
 
@@ -1655,7 +1609,7 @@ func (ec *executionContext) _Post_comments(ctx context.Context, field graphql.Co
 	return ec.marshalOComment2ᚕᚖozonᚑteskᚑtaskᚋinternalᚋtransportᚋgraphᚋmodelᚐComment(ctx, field.Selections, res)
 }
 
-func (ec *executionContext) fieldContext_Post_comments(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+func (ec *executionContext) fieldContext_Post_comments(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	fc = &graphql.FieldContext{
 		Object:     "Post",
 		Field:      field,
@@ -1682,17 +1636,6 @@ func (ec *executionContext) fieldContext_Post_comments(ctx context.Context, fiel
 			}
 			return nil, fmt.Errorf("no field named %q was found under type Comment", field.Name)
 		},
-	}
-	defer func() {
-		if r := recover(); r != nil {
-			err = ec.Recover(ctx, r)
-			ec.Error(ctx, err)
-		}
-	}()
-	ctx = graphql.WithFieldContext(ctx, fc)
-	if fc.Args, err = ec.field_Post_comments_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
-		ec.Error(ctx, err)
-		return fc, err
 	}
 	return fc, nil
 }
@@ -4107,10 +4050,6 @@ func (ec *executionContext) unmarshalInputCreatePostInput(ctx context.Context, o
 	asMap := map[string]any{}
 	for k, v := range obj.(map[string]any) {
 		asMap[k] = v
-	}
-
-	if _, present := asMap["allowComments"]; !present {
-		asMap["allowComments"] = false
 	}
 
 	fieldsInOrder := [...]string{"title", "content", "allowComments"}
