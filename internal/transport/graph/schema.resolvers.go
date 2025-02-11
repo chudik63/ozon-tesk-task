@@ -52,12 +52,18 @@ func (r *mutationResolver) CreatePost(ctx context.Context, input model.CreatePos
 
 	r.logs.Debug(ctx, "Creating post", zap.Any("input", input))
 
+	user := ctx.Value("user_id")
+	author, ok := user.(int32)
+	if !ok {
+		author = 0
+	}
+
 	post, err := r.service.CreatePost(ctx, &model.Post{
 		Title:         input.Title,
 		Content:       input.Content,
 		AllowComments: input.AllowComments,
 		CreatedAt:     time.Now().Format(time.DateTime),
-		Author:        0,
+		Author:        author,
 	})
 	if err != nil {
 		r.logs.Error(ctx, "failed to create post", zap.String("err", err.Error()))
@@ -96,12 +102,18 @@ func (r *mutationResolver) CreateComment(ctx context.Context, input model.Create
 
 	r.logs.Debug(ctx, "Creating comment", zap.Any("input", input))
 
+	user := ctx.Value("user_id")
+	author, ok := user.(int32)
+	if !ok {
+		author = 0
+	}
+
 	comment, err := r.service.CreateComment(ctx, &model.Comment{
 		PostID:    input.PostID,
 		ParentID:  input.ParentID,
 		Content:   input.Content,
 		CreatedAt: time.Now().Format(time.DateTime),
-		Author:    0,
+		Author:    author,
 	})
 
 	if err != nil {
