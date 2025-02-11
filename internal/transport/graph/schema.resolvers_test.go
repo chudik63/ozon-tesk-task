@@ -139,7 +139,7 @@ func Test_mutationResolver_CreatePost(t *testing.T) {
 				Content:       tt.args.input.Content,
 				AllowComments: tt.args.input.AllowComments,
 				CreatedAt:     time.Now().Format(time.DateTime),
-				Author:        1,
+				Author:        0,
 			}, tt.want)
 
 			got, err := r.CreatePost(tt.args.ctx, tt.args.input)
@@ -360,7 +360,7 @@ func Test_mutationResolver_CreateComment(t *testing.T) {
 				ParentID:  tt.args.input.ParentID,
 				Content:   tt.args.input.Content,
 				CreatedAt: time.Now().Format(time.DateTime),
-				Author:    1,
+				Author:    0,
 			}, tt.want)
 
 			tt.mockPubSub(p, tt.want)
