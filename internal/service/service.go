@@ -7,6 +7,7 @@ import (
 	"ozon-tesk-task/pkg/pointer"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@latest --name Repository
 type Repository interface {
 	ListPosts(ctx context.Context, limit, offset int32) ([]*model.Post, error)
 	ListPostsWithComments(ctx context.Context, limit, offset int32) ([]*model.Post, error)
